@@ -1,0 +1,115 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="robots" content="noindex, nofollow">
+  <title>Chargers Playbook</title>
+  <meta name="description" content="Learn the Vista Chargers plays: Boom and Sonic. Where to stand, what to do, and how to do it.">
+  <link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+  <header class="topbar">
+    <span class="bolt" aria-hidden="true">&#x26A1;</span>
+    <span>Vista Chargers Playbook</span>
+  </header>
+
+  <main>
+    <section class="intro">
+      <img class="intro-photo" src="assets/img/hero.jpg" alt="A Chargers running back carrying the football">
+      <div>
+        <h1>Let's learn our plays!</h1>
+        <p class="lead">For players and parents. Watch the play, find your spot, and practice together.</p>
+      </div>
+    </section>
+
+    <section class="parents">
+      <details class="parents-box" id="parents" open>
+        <summary>Parents</summary>
+        <details class="parents-sub" id="howto">
+          <summary>How to use this page (1 minute)</summary>
+          <ol>
+            <li><b>Find your player</b> by name to see their spot in this game's rotation.</li>
+            <li><b>Call a play like Coach:</b> Play, Type, Variation, Direction, Cadence, Game rotation.</li>
+            <li><b>Tap your player's spot number</b> (Coach gives every kid a number, #1 to #7).</li>
+            <li><b>Pick 7, 6 or 5 players</b> to match the game. The highest numbers sit out.</li>
+            <li><b>Press Play</b> and watch the play move. Slow motion is on to start.</li>
+            <li><b>Tap "Read it to me"</b> and go through the steps together.</li>
+            <li><b>Practice 5 minutes</b> in the yard with the drill at the bottom of the card.</li>
+          </ol>
+          <p>Tip: the page remembers what you picked in the web address. Save it or text it to another parent.</p>
+        </details>
+        <details class="parents-sub" id="find-player">
+          <summary>Find your player</summary>
+          <p class="muted">Shows the game rotation picked in Coach calls.</p>
+          <div class="chips kid-picker" id="kid-picker" role="group" aria-label="Players"></div>
+          <div id="kid-card"></div>
+        </details>
+      </details>
+    </section>
+
+    <section class="call">
+      <h2>Coach calls</h2>
+      <p class="muted">Call any play Coach would, then press Play.</p>
+      <div class="call-panel" id="call"></div>
+      <div class="scribe" id="scribe" aria-live="polite"></div>
+      <p class="tagline" id="tagline"></p>
+    </section>
+
+    <section class="play" aria-live="polite">
+
+      <div class="field-wrap">
+        <svg id="field" viewBox="0 0 440 322" role="img" aria-label="Animated play diagram"></svg>
+        <div class="caption" id="caption" aria-hidden="true"></div>
+      </div>
+      <p class="hint">&#x1F446; Tap any player to highlight them.</p>
+      <div class="controls">
+        <button class="btn btn-primary" id="btn-play" type="button">&#x25B6; Play</button>
+        <button class="btn" id="btn-reset" type="button">&#x21BA; Start over</button>
+        <button class="btn" id="btn-speed" type="button" aria-pressed="true">&#x1F422; Slow motion</button>
+      </div>
+      <p class="summary" id="summary"></p>
+    </section>
+
+    <section class="positions">
+      <h2>Pick your spot</h2>
+      <div class="numbers">
+        <p><b>Every spot has a number.</b> Your number never changes, on any play.</p>
+        <p>#1 Center, #2 QB, #3 RB, #4 and #5 Outside Receivers, #6 and #7 Inside Receivers.</p>
+        <ul>
+          <li><b>7 v 7:</b> everybody plays.</li>
+          <li><b>6 v 6:</b> #7 sits out.</li>
+          <li><b>5 v 5:</b> #6 and #7 sit out.</li>
+        </ul>
+        <p>Nobody learns a new play. Everyone else does the exact same job.</p>
+      </div>
+      <div class="team-size" id="team-size"></div>
+      <div class="picker" id="picker" role="group" aria-label="Positions"></div>
+      <article class="role-card" id="role-card"></article>
+    </section>
+
+    <section class="team">
+      <h2>What everyone does</h2>
+      <ul class="team-list" id="team-list"></ul>
+    </section>
+
+    <section class="wristband">
+      <h2>The wristband card</h2>
+      <p class="muted" id="card-note">This is the picture on the wristband. The field above moves the same way.</p>
+      <img id="card-img" src="assets/img/card-boom-pass.png" alt="Wristband play card">
+    </section>
+
+    <section class="glossary">
+      <h2>Football words</h2>
+      <dl id="glossary"></dl>
+    </section>
+  </main>
+
+  <footer class="footer">Go Chargers! &#x26A1; Questions about a play? Ask Coach.</footer>
+
+  <script src="js/engine.js"></script>
+  <script src="js/plays.js"></script>
+  <script src="js/roster.js"></script>
+  <script src="js/app.js"></script>
+</body>
+</html>
