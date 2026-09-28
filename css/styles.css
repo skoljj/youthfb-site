@@ -470,7 +470,15 @@ button { font: inherit; cursor: pointer; }
   letter-spacing: 0.06em;
   color: var(--gold);
 }
-.scribe-call { margin: 0; font-size: 1.35rem; font-weight: 800; line-height: 1.3; text-wrap: balance; }
+.scribe-lines { margin: 0; padding: 0; list-style: none; display: grid; gap: 6px; }
+.scribe-lines li { display: grid; grid-template-columns: 6.5rem 1fr; gap: 8px; align-items: baseline; }
+.scribe-tag { font-size: 0.8rem; font-weight: 800; text-transform: uppercase; letter-spacing: 0.06em; color: #b9d7ee; }
+.scribe-call { font-size: 1.25rem; font-weight: 800; line-height: 1.3; }
+.scribe-lines li .scribe-clap { grid-column: 2; }
+@media (max-width: 480px) {
+  .scribe-lines li { grid-template-columns: 1fr; gap: 0; }
+  .scribe-lines li .scribe-clap { grid-column: 1; }
+}
 .scribe-clap { font-size: 1rem; font-weight: 700; color: var(--gold); white-space: nowrap; }
 .btn-say { justify-self: start; min-height: 40px; padding: 6px 14px; background: transparent; color: #fff; border-color: #fff; }
 

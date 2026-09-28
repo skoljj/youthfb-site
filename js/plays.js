@@ -85,7 +85,7 @@
     qb: {
       title: 'Loud voice, soft hands',
       steps: [
-        'Practice calling the cadence LOUD, like the whole park needs to hear it.',
+        'Practice calling the cadence LOUD, like the whole park needs to hear it: "Ready, Down, Set, Hut-1" (add "Hut-2" when the call is on two).',
         'Handoff: you jog past as the RB. Your player puts the ball right in your tummy and watches it go in.',
         'Throwing: set feet, point the front shoulder at a target (a bucket works), and throw.',
         'Say "Point, step, throw!" out loud together.',
@@ -146,8 +146,10 @@
     'Assignment: 5-yard In route.',
     `Technique: See that your upfield foot is behind the ball. SEE the snap. Explode 5 yds upfield, break down, drop hips, push off outside foot, cut straight down line at 90 degrees. Find QB with your eyes. Head on swivel across middle. Settle in ${flat} flat. Keep eyes on QB, hands ready. See the ball all the way into your hands. Catch, tuck, get upfield.`,
   ];
+  const CADENCE_STEP = '\u{1F5E3}\uFE0F The cadence always starts: Ready, Down, Set, Hut-1. Add Hut-2 only when the call is "on two".';
   const QB_START = [
     '\u{1F4E3} Get everyone lined up. Call the cadence LOUD and clear.',
+    CADENCE_STEP,
     '\u{1F3C8} Catch the snap with two hands.',
   ];
   const QB_ALL_COACH = 'All plays: Bring team to line & get them set. Run cadence loudly, clearly. Take snap securely. Take appropriate drop.';
@@ -504,6 +506,7 @@
         job: 'Take the snap and hand the ball to Sonic as they zoom by.',
         how: [
           '\u{1F4E3} Call the cadence LOUD. Sonic starts running when you say "Down".',
+          CADENCE_STEP,
           '\u{1F3C8} Catch the snap with two hands.',
           '\u{1F504} Turn toward Sonic.',
           '\u{1F440} Watch your hand put the ball right in Sonic\'s tummy as they zoom by.',
@@ -518,7 +521,7 @@
   const GLOSSARY = [
     ['Line of scrimmage (LOS)', 'The line where the ball sits before the play. Receivers stand on it.'],
     ['Snap', 'The Center hands or tosses the ball back to the QB to start the play.'],
-    ['Cadence', 'The words the QB yells to start the play. The ball is snapped on the last word.'],
+    ['Cadence', 'The words the QB yells at the line: always Ready, Down, Set, Hut-1, plus Hut-2 when the call is "on two". The ball is snapped on the called word.'],
     ['Route', 'The path a receiver runs.'],
     ['Flat', 'The open grass out near the sideline, not far past the line.'],
     ['Go route', 'Run straight down the field, far and fast.'],
@@ -534,12 +537,12 @@
   ];
 
   // Snap counts. The QB calls "on one" (etc.) twice in the huddle. At the line
-  // the cadence is always Ready, Down, Set, Hut 1, and Hut 2 only on two.
+  // the cadence is always Ready, Down, Set, Hut-1, and Hut-2 only on two.
   // The ball is snapped on the called word.
   const CADENCES = [
     { id: 'set', label: 'Set', call: 'on set', preSnap: ['Ready...', 'Down...'], snapWord: 'SET!' },
-    { id: 'one', label: 'One', call: 'on one', preSnap: ['Ready...', 'Down...', 'Set...'], snapWord: 'HUT 1!' },
-    { id: 'two', label: 'Two', call: 'on two', preSnap: ['Ready...', 'Down...', 'Set...', 'Hut 1...'], snapWord: 'HUT 2!' },
+    { id: 'one', label: 'One', call: 'on one', preSnap: ['Ready...', 'Down...', 'Set...'], snapWord: 'HUT-1!' },
+    { id: 'two', label: 'Two', call: 'on two', preSnap: ['Ready...', 'Down...', 'Set...', 'Hut-1...'], snapWord: 'HUT-2!' },
   ];
   const DEFAULT_CADENCE = 'one';
 

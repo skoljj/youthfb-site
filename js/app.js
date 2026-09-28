@@ -471,29 +471,37 @@
     return `${v.name} ${state.left ? 'Left' : 'Right'}`;
   }
 
-  // "Boom Pass - Mia, on one, on one. Ready, break!"
-  function huddleCall() {
-    const who = kidFor(state.scene.carrier);
+  // The three huddle lines: play x2, cadence x2, then the break.
+  function huddleLines() {
+    const play = `${playCallName()} ${kidFor(state.scene.carrier)}.`;
     const count = CADENCES.find((c) => c.id === state.cadence).call;
-    return `${playCallName()} - ${who}, ${count}, ${count}. Ready, break!`;
+    const cadence = `${count.charAt(0).toUpperCase()}${count.slice(1)}.`;
+    return [
+      { label: 'Play x2', words: `${play} ${play}` },
+      { label: 'Cadence x2', words: `${cadence} ${cadence}` },
+      { label: 'Break', words: 'Ready, break!' },
+    ];
   }
 
   function renderScribe() {
-    const call = huddleCall();
+    const lines = huddleLines();
     $('scribe').replaceChildren(
-      el('p', { class: 'scribe-label', text: 'Huddle call (what the QB says)' }),
-      el('p', { class: 'scribe-call' }, [
-        el('span', { text: `“${call}”` }),
-        el('span', { class: 'scribe-clap', text: ' \u{1F44F} clap' }),
-      ]),
-      el('button', { type: 'button', class: 'btn btn-say', onclick: () => sayCall(call), text: '\u{1F50A} Say it' }),
+      el('p', { class: 'scribe-label', text: 'Huddle Call (What the QB Says)' }),
+      el('ol', { class: 'scribe-lines' }, lines.map((line, i) =>
+        el('li', {}, [
+          el('span', { class: 'scribe-tag', text: line.label }),
+          el('span', { class: 'scribe-call', text: `“${line.words}”` }),
+          i === lines.length - 1 ? el('span', { class: 'scribe-clap', text: ' \u{1F44F} clap' }) : null,
+        ]),
+      )),
+      el('button', { type: 'button', class: 'btn btn-say', onclick: () => sayCall(lines.map((l) => l.words).join(' ')), text: '\u{1F50A} Say it' }),
     );
   }
 
   function sayCall(call) {
     if (!('speechSynthesis' in window)) return;
     speechSynthesis.cancel();
-    const utter = new SpeechSynthesisUtterance(call.replace(' - ', ', '));
+    const utter = new SpeechSynthesisUtterance(call);
     utter.rate = 0.95;
     speechSynthesis.speak(utter);
   }
