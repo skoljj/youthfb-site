@@ -118,6 +118,11 @@
   // opts: { flip, target, drop: [ids of players sitting out], late: throw on the 2nd read,
   //         cadence: { preSnap: ['Down...', 'Set...'], snapWord: 'HUT!' } }
   function buildScene(variation, opts = {}) {
+    // Fully mirrored plays (the reverser or the Center's angle changes sides too)
+    // carry their own flipped actors, events and captions.
+    if (opts.flip && variation.flipped) {
+      variation = { ...variation, ...variation.flipped, flipActors: [] };
+    }
     const snapAt = variation.snapAt ?? 1.2;
     const actors = resolveActors(variation, opts, snapAt);
     const warnings = [];

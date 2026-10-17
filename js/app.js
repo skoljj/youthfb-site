@@ -1,8 +1,10 @@
 // Page wiring: reads Playbook data, draws the field, runs the animation.
 (function () {
-  const { PLAYS, ORDER, POSITIONS, ALIGNMENT, PRACTICE, GLOSSARY, RUN_TIP, TEAM_SIZES, sitsOut, getRole, CADENCES, DEFAULT_CADENCE } = window.Playbook;
+  const { PLAYS, ORDER, POSITIONS, ALIGNMENT, PRACTICE, GLOSSARY, RUN_TIP, TEAM_SIZES, DEFAULT_SIZE, sitsOut, getRole, CADENCES, DEFAULT_CADENCE, DEFENSE } = window.Playbook;
   const Engine = window.PlayEngine;
   const Roster = window.Roster;
+  const GamePlan = window.GamePlan;
+  const PLAN_KEY = 'chargers-game-plan-v1';
   const SVG_NS = 'http://www.w3.org/2000/svg';
 
   // Field drawing scale: yards to SVG units. Matches viewBox 440 x 322.
@@ -15,12 +17,14 @@
   const $ = (id) => document.getElementById(id);
 
   const state = {
+    side: 'offense', // or 'defense'
     play: PLAYS[0],
     variation: PLAYS[0].variations[0],
     pos: null,
     left: true, // Direction defaults to Left
-    size: 7,
-    rotation: 1,
+    size: DEFAULT_SIZE,
+    plan: null, // see js/gameplan.js
+    series: 0, // index of the current series in the plan
     kid: null,
     cadence: DEFAULT_CADENCE,
     target: null,
@@ -33,27 +37,31 @@
   };
   let els = { actors: {}, routes: {} };
 
-  // ---------- URL state: #play/variation/POS?side=left&to=IRR&late=1&n=6 ----------
+  // ---------- URL state: #play/variation/POS?side=left&to=IRR&late=1&n=6, or #defense/POS ----------
 
   function readHash() {
     const [route, query = ''] = location.hash.replace(/^#/, '').split('?');
     const [playId, varId, pos] = route.split('/');
     const params = new URLSearchParams(query);
+    state.side = playId === 'defense' ? 'defense' : 'offense';
     const play = PLAYS.find((p) => p.id === playId) || PLAYS[0];
     const variation = play.variations.find((v) => v.id === varId) || play.variations[0];
     state.play = play;
     state.variation = variation;
-    state.pos = ORDER.includes(pos) ? pos : null;
+    if (isDefense()) state.pos = DEFENSE.order.includes(varId) ? varId : null;
+    else state.pos = ORDER.includes(pos) ? pos : null;
     state.left = variation.direction ? variation.direction === 'left' : params.get('side') !== 'right';
     state.cadence = CADENCES.some((c) => c.id === params.get('c')) ? params.get('c') : DEFAULT_CADENCE;
-    const rotation = Number(params.get('r'));
-    state.rotation = Roster.ROTATIONS.some((r) => r.id === rotation) ? rotation : 1;
+    importSharedPlan(params.get('plan'));
+    const series = Number(params.get('s')) - 1;
+    state.series = series >= 0 && series < state.plan.series.length ? series : Math.min(state.series, state.plan.series.length - 1);
     state.kid = Roster.KIDS.includes(params.get('kid')) ? params.get('kid') : null;
     const size = Number(params.get('n'));
-    state.size = TEAM_SIZES.includes(size) ? size : 7;
-    if (state.pos && sitsOut(state.pos, state.size)) state.pos = null;
+    state.size = TEAM_SIZES.includes(size) ? size : DEFAULT_SIZE;
+    if (!isDefense() && state.pos && sitsOut(state.pos, state.size)) state.pos = null;
     const to = params.get('to');
-    state.target = variation.targets ? (variation.targets.includes(to) && !sitsOut(to, state.size) ? to : variation.defaultTarget) : null;
+    const validTarget = (variation.targets || []).includes(to) ? !sitsOut(to, state.size) : to === ANY && variation.qbChoice;
+    state.target = variation.targets ? (validTarget ? to : variation.defaultTarget) : null;
     state.late = params.get('late') === '1' && !!lateRead();
   }
 
@@ -63,16 +71,16 @@
   }
 
   function writeHash() {
-    const parts = [state.play.id, state.variation.id];
+    const parts = isDefense() ? ['defense'] : [state.play.id, state.variation.id];
     if (state.pos) parts.push(state.pos);
     const params = new URLSearchParams();
-    if (!state.left && state.variation.flipActors) params.set('side', 'right');
-    if (state.late) params.set('late', '1');
-    if (state.size !== 7) params.set('n', String(state.size));
-    if (state.rotation !== 1) params.set('r', String(state.rotation));
+    if (!isDefense() && !state.left && state.variation.flipActors) params.set('side', 'right');
+    if (!isDefense() && state.late) params.set('late', '1');
+    if (state.size !== DEFAULT_SIZE) params.set('n', String(state.size));
+    if (state.series !== 0) params.set('s', String(state.series + 1));
     if (state.cadence !== DEFAULT_CADENCE) params.set('c', state.cadence);
     if (state.kid) params.set('kid', state.kid);
-    if (state.target && state.target !== state.variation.defaultTarget) params.set('to', state.target);
+    if (!isDefense() && state.target && state.target !== state.variation.defaultTarget) params.set('to', state.target);
     const query = params.toString();
     try {
       history.replaceState(null, '', `#${parts.join('/')}${query ? `?${query}` : ''}`);
@@ -102,19 +110,62 @@
     return node;
   }
 
+  // Pass target meaning "QB's choice": the animation throws to the default read.
+  const ANY = 'any';
+
+  // Boom is drawn to the Right and flipped for Left. Sonic has a version per side.
+  function isFlipped() {
+    return state.left && !!state.variation.flipActors;
+  }
+
+  function isDefense() {
+    return state.side === 'defense';
+  }
+
+  // Offensive spots (ORL, QB, ...) and defensive spots (CBL, MLB, ...) share these helpers.
+  function posInfo(id) {
+    return POSITIONS[id] || DEFENSE.positions[id];
+  }
+
   function posLabel(id) {
-    const p = POSITIONS[id];
-    return `#${p.num} ${p.side ? `${p.short} (${p.side})` : p.short}`;
+    const p = posInfo(id);
+    const name = p.side ? `${p.short} (${p.side})` : p.short;
+    return p.num ? `#${p.num} ${name}` : name;
   }
 
   function posName(id) {
-    const p = POSITIONS[id];
+    const p = posInfo(id);
     return p.side ? `${p.name} (${p.side})` : p.name;
   }
 
-  // Kid playing this spot in the selected rotation.
+  function currentSeries() {
+    return state.plan.series[state.series];
+  }
+
+  // Kid playing this spot in the current series (offense by number, defense by spot).
+  // Kid at a spot. On a defensive series the offense shows the next offensive
+  // series (and the other way round), so both sides always have names.
   function kidFor(id) {
-    return Roster.kidAt(state.rotation, POSITIONS[id].num);
+    if (POSITIONS[id]) return seriesFor('O').o[POSITIONS[id].num - 1];
+    return seriesFor('D').d[id] || null;
+  }
+
+  function seriesFor(side, from = state.series) {
+    const list = state.plan.series;
+    if (list[from].side === side) return list[from];
+    return list.slice(from + 1).find((x) => x.side === side) || [...list.slice(0, from)].reverse().find((x) => x.side === side) || emptySeries(side);
+  }
+
+  function emptySeries(side) {
+    return side === 'O' ? { side, o: Roster.KIDS.slice() } : { side, d: {} };
+  }
+
+
+  // Series are counted per side, the way Coach talks: Offense 1, Defense 1, Offense 2...
+  function seriesLabel(i = state.series) {
+    const list = state.plan.series;
+    const n = list.slice(0, i + 1).filter((x) => x.side === list[i].side).length;
+    return `${list[i].side === 'O' ? 'Offense' : 'Defense'} ${n}`;
   }
 
   function idForNum(num) {
@@ -142,27 +193,30 @@
 
   // ---------- Coach calls panel: Play / Type / Variation / Direction ----------
 
+  function sideRow() {
+    return callRow('Side', [
+      { label: 'Offense', active: !isDefense(), onclick: () => setSideOfBall('offense') },
+      { label: 'Defense', active: isDefense(), onclick: () => setSideOfBall('defense') },
+    ], { hideLabel: true });
+  }
+
   function renderCall() {
+    if (isDefense()) {
+      $('call').replaceChildren(sideRow(), callRow('Coverage', [{ label: DEFENSE.name, active: true, onclick: () => {} }]));
+      $('tagline').textContent = DEFENSE.tagline;
+      return;
+    }
     const play = state.play;
     const v = state.variation;
-    const rows = [
-      playRow(),
-      callRow('Type', play.groups.map((g) => ({
-        label: g.name,
-        active: v.group === g.id,
-        onclick: () => selectVariation(play.variations.find((x) => x.group === g.id)),
-      }))),
-    ];
-    const kinds = play.variations.filter((x) => x.group === v.group && x.short);
-    if (kinds.length > 1) {
-      rows.push(callRow('Variation', kinds.map((x) => ({ label: x.short, active: x === v, onclick: () => selectVariation(x) }))));
-    }
+    const rows = [sideRow(), playRow(), playCallRow()];
     if (v.targets) {
-      rows.push(callRow('Variation', v.targets.filter((id) => !sitsOut(id, state.size)).sort(byFieldX).map((id) => ({
+      const targets = v.targets.filter((id) => !sitsOut(id, state.size)).sort(byFieldX).map((id) => ({
         label: targetLabel(id),
         active: state.target === id,
         onclick: () => setTarget(id),
-      }))));
+      }));
+      if (v.qbChoice) targets.push({ label: "QB's choice", active: state.target === ANY, onclick: () => setTarget(ANY) });
+      rows.push(callRow('Target', targets, { look: 'rail' }));
       const read = lateRead();
       if (read) {
         rows.push(callRow('Read', [
@@ -172,20 +226,39 @@
       }
     }
     const directions = directionButtons();
-    if (directions) rows.push(callRow('Direction', directions));
+    if (directions) rows.push(callRow('Direction', directions, { hideLabel: true }));
     rows.push(callRow('Cadence', CADENCES.map((c) => ({ label: c.label, active: state.cadence === c.id, onclick: () => setCadence(c.id) }))));
-    rows.push(callRow('Game rotation', Roster.ROTATIONS.map((r) => ({ label: String(r.id), active: state.rotation === r.id, onclick: () => setRotation(r.id) }))));
     $('call').replaceChildren(...rows);
     $('tagline').textContent = play.tagline;
+  }
+
+  // Every version of the play in one row, grouped Pass / Handoff. One chip per
+  // kind: Sonic has a Left and a Right version of each, picked by Direction.
+  function playCallRow() {
+    const v = state.variation;
+    const groups = state.play.groups.map((g) => {
+      const kinds = state.play.variations.filter((x) => x.group === g.id && (!x.direction || x.direction === (v.direction || (state.left ? 'left' : 'right'))));
+      return el('div', { class: 'call-group' }, [
+        el('span', { class: 'call-group-label', text: g.name }),
+        ...kinds.map((x) => {
+          const on = x === v;
+          return el('button', { type: 'button', class: `chip${on ? ' active' : ''}`, 'aria-pressed': String(on), onclick: () => selectVariation(x), text: x.short || g.name });
+        }),
+      ]);
+    });
+    return el('div', { class: 'call-row call-row-rail', 'data-row': 'call' }, [
+      el('span', { class: 'call-label', text: 'Call' }),
+      el('div', { class: 'call-chips rail call-groups', role: 'group', 'aria-label': 'Call' }, groups),
+    ]);
   }
 
   // Sonic picks its Left or Right version; Boom mirrors the QB and RB.
   function directionButtons() {
     const v = state.variation;
-    const LEFT = '⬅️ Left';
-    const RIGHT = 'Right ➡️';
+    const LEFT = '\u2190 Left';
+    const RIGHT = 'Right \u2192';
     if (v.direction) {
-      const pick = (dir) => state.play.variations.find((x) => x.group === v.group && x.direction === dir);
+      const pick = (dir) => state.play.variations.find((x) => x.group === v.group && x.short === v.short && x.direction === dir);
       return [
         { label: LEFT, active: v.direction === 'left', onclick: () => selectVariation(pick('left')) },
         { label: RIGHT, active: v.direction === 'right', onclick: () => selectVariation(pick('right')) },
@@ -200,24 +273,27 @@
 
   // Boom and Sonic get big branded buttons; the other rows use plain chips.
   function playRow() {
-    return el('div', { class: 'call-row call-row-play', 'data-row': 'play' }, [
-      el('span', { class: 'call-label', text: 'Play' }),
-      el('div', { class: 'play-tabs', role: 'group', 'aria-label': 'Play' }, PLAYS.map((p) =>
+    return el('div', { class: 'call-row call-row-seg call-row-play', 'data-row': 'play' }, [
+      el('span', { class: 'call-label sr-only', text: 'Play' }),
+      el('div', { class: 'call-chips seg play-tabs', role: 'group', 'aria-label': 'Play' }, PLAYS.map((p) =>
         el('button', {
           type: 'button',
           class: `chip play-tab${p === state.play ? ' active' : ''}`,
           'aria-pressed': String(p === state.play),
           'aria-label': p.name,
           onclick: () => selectPlay(p),
-        }, [el('span', { class: 'tab-icon', 'aria-hidden': 'true', text: p.icon }), el('span', { class: 'tab-name', text: p.name.toUpperCase() })]),
+        }, [el('span', { class: 'tab-icon', 'aria-hidden': 'true', text: p.icon }), el('span', { class: 'tab-name', text: p.name })]),
       )),
     ]);
   }
 
-  function callRow(label, buttons) {
-    return el('div', { class: 'call-row', 'data-row': label.toLowerCase() }, [
-      el('span', { class: 'call-label', text: label }),
-      el('div', { class: 'call-chips', role: 'group', 'aria-label': label }, buttons.map((b) =>
+  // Two looks: 'seg' is a segmented control for either/or picks (Side, Direction,
+  // Snap); 'rail' is a one-line row of pills that scrolls sideways (Target).
+  // `hideLabel` keeps the label for screen readers only.
+  function callRow(label, buttons, { look = 'seg', hideLabel = false } = {}) {
+    return el('div', { class: `call-row call-row-${look}`, 'data-row': label.toLowerCase() }, [
+      el('span', { class: `call-label${hideLabel ? ' sr-only' : ''}`, text: label }),
+      el('div', { class: `call-chips ${look}`, role: 'group', 'aria-label': label }, buttons.map((b) =>
         el('button', { type: 'button', class: `chip${b.active ? ' active' : ''}`, 'aria-pressed': String(b.active), onclick: b.onclick, text: b.label }),
       )),
     ]);
@@ -249,8 +325,14 @@
   }
 
   function renderSummary() {
-    const v = state.variation;
     const node = $('summary');
+    if (isDefense()) {
+      node.replaceChildren(el('b', { text: `${DEFENSE.name}: ` }), document.createTextNode(DEFENSE.summary));
+      if (!DEFENSE.sizes.includes(state.size)) node.append(el('span', { class: 'draft-note', text: ` Drawn for ${DEFENSE.sizes[0]} v ${DEFENSE.sizes[0]}. The ${state.size} v ${state.size} defense is coming.` }));
+      if (DEFENSE.draft) node.append(el('span', { class: 'draft-note', text: ' \u{1F6A7} Coach is still building the jobs. The alignment is set.' }));
+      return;
+    }
+    const v = state.variation;
     node.replaceChildren(el('b', { text: `${v.name}: ` }), document.createTextNode(v.summary));
     if (v.draft) node.append(el('span', { class: 'draft-note', text: ' \u{1F6A7} Coach is still building this one. Check with Coach before practicing it.' }));
   }
@@ -281,6 +363,10 @@
       const los = svg('text', { x, y: Y(0) + 12, class: 'yard-label' });
       los.textContent = 'LOS';
       field.append(los);
+    }
+    if (isDefense()) {
+      drawDefense(field);
+      return;
     }
 
     const scene = state.scene;
@@ -325,10 +411,41 @@
     update();
   }
 
+  // Cover 2 against our own 5 v 5 formation: offense faded, defenders tappable.
+  function drawDefense(field) {
+    els = { actors: {}, routes: {} };
+    const ghosts = svg('g', { class: 'ghosts', 'aria-hidden': 'true' });
+    for (const id of onField()) {
+      const [x, y] = POSITIONS[id].start;
+      const g = svg('g', { class: 'ghost', transform: `translate(${X(x).toFixed(1)},${Y(y).toFixed(1)})` });
+      const label = svg('text', { class: 'actor-label', 'text-anchor': 'middle', dy: '0.35em' });
+      label.textContent = POSITIONS[id].short;
+      g.append(svg('circle', { r: 12, class: 'actor-dot' }), label);
+      ghosts.append(g);
+    }
+    const ball = svg('g', { class: 'ball', transform: `translate(${X(0)},${Y(0)}) rotate(-25)` });
+    ball.append(svg('ellipse', { rx: 6.5, ry: 4.2, class: 'ball-body' }), svg('line', { x1: -2.5, x2: 2.5, y1: 0, y2: 0, class: 'ball-lace' }));
+    const actorLayer = svg('g', { class: 'actors defense' });
+    for (const id of DEFENSE.order) {
+      const [x, y] = DEFENSE.positions[id].start;
+      const g = svg('g', { class: 'actor defender', tabindex: 0, role: 'button', 'aria-label': posName(id), transform: `translate(${X(x).toFixed(1)},${Y(y).toFixed(1)})` });
+      const label = svg('text', { class: 'actor-label', 'text-anchor': 'middle', dy: '0.35em' });
+      label.textContent = DEFENSE.positions[id].short;
+      g.append(svg('circle', { r: 17, class: 'actor-ring' }), svg('circle', { r: 13, class: 'actor-dot' }), label);
+      g.addEventListener('click', () => selectPos(id));
+      g.addEventListener('keydown', (e) => (e.key === 'Enter' || e.key === ' ') && selectPos(id));
+      els.actors[id] = g;
+      actorLayer.append(g);
+    }
+    field.append(ghosts, ball, actorLayer);
+    $('caption').textContent = '';
+    highlight();
+  }
+
   function highlight() {
     const field = $('field');
     field.classList.toggle('has-me', !!state.pos);
-    for (const id of onField()) {
+    for (const id of Object.keys(els.actors)) {
       els.actors[id].classList.toggle('me', id === state.pos);
       els.actors[id].classList.toggle('sonic', isSonicRunner(id));
       const route = els.routes[id];
@@ -339,6 +456,7 @@
   }
 
   function update() {
+    if (isDefense()) return;
     const scene = state.scene;
     for (const id of onField()) {
       const [x, y] = Engine.positionAt(scene.actors[id], state.t);
@@ -390,6 +508,10 @@
   // ---------- positions ----------
 
   function renderPicker() {
+    if (isDefense()) {
+      renderDefensePicker();
+      return;
+    }
     const button = (id) => {
       const p = POSITIONS[id];
       const out = sitsOut(id, state.size);
@@ -403,7 +525,7 @@
       }, [
         el('span', { class: 'spot-dot', text: String(p.num) }),
         el('span', { class: 'spot-kid', text: kidFor(id) }),
-        el('span', { class: 'spot-name', text: out ? 'sits out' : p.side ? `${p.short} ${p.side}` : p.short }),
+        el('span', { class: 'spot-name', text: out ? 'on break' : p.side ? `${p.short} ${p.side}` : p.short }),
       ]);
     };
     $('picker').replaceChildren(
@@ -413,15 +535,67 @@
     );
   }
 
+  function renderDefensePicker() {
+    const button = (id) => {
+      const p = DEFENSE.positions[id];
+      const kid = kidFor(id);
+      return el('button', {
+        type: 'button',
+        class: `spot defender${id === state.pos ? ' active' : ''}`,
+        'aria-pressed': String(id === state.pos),
+        'aria-label': `${posName(id)}${kid ? `, ${kid}` : ''}`,
+        onclick: () => selectPos(id),
+      }, [
+        el('span', { class: 'spot-dot', text: p.short }),
+        el('span', { class: 'spot-kid', text: kid || '' }),
+        el('span', { class: 'spot-name', text: p.side ? `${p.name} ${p.side}` : p.name }),
+      ]);
+    };
+    // Safeties deep on top, the three on the ball below, like looking down the field.
+    $('picker').replaceChildren(
+      el('div', { class: 'picker-row' }, ['SL', 'SR'].map(button)),
+      el('div', { class: 'picker-row' }, ['CBL', 'MLB', 'CBR'].map(button)),
+    );
+  }
+
+  function renderDefenseCard(card) {
+    const id = state.pos;
+    const p = DEFENSE.positions[id];
+    const role = DEFENSE.roles[id];
+    const kid = kidFor(id);
+    card.replaceChildren(
+      el('div', { class: 'role-head' }, [
+        el('span', { class: 'role-dot defender', text: p.short }),
+        el('div', {}, [
+          el('h3', { text: posName(id) }),
+          el('p', { class: 'spot-line', text: kid ? `${kid} plays ${posName(id)} on defense in ${seriesLabel()}.` : `${DEFENSE.name} defense.` }),
+        ]),
+      ]),
+      el('button', { type: 'button', class: 'btn btn-read', onclick: () => speakRole(id, role, role.align), text: '\u{1F50A} Read it to me' }),
+      step(1, 'Where do I stand?', el('ul', {}, role.align.kid.map((t) => el('li', { text: t })))),
+      step(2, 'What is my job?', el('p', { class: 'job', text: role.job })),
+      step(3, 'How do I do it?', el('ol', { class: 'how' }, role.how.map((t) => el('li', { text: t })))),
+      DEFENSE.draft ? el('p', { class: 'tip', text: '\u{1F6A7} Coach is still building the defensive jobs. The alignment is set.' }) : null,
+      el('details', { class: 'more' }, [
+        el('summary', { text: "\u{1F4CB} For parents: Coach's exact words" }),
+        el('p', { text: `Alignment: ${role.align.coach}` }),
+      ]),
+    );
+  }
+
   function renderRoleCard() {
     const card = $('role-card');
     if (!state.pos) {
       card.replaceChildren(el('p', { class: 'role-empty', text: '\u{1F446} Tap a spot above (or a player on the field) to see where to stand, what to do, and how to do it.' }));
       return;
     }
+    if (isDefense()) {
+      renderDefenseCard(card);
+      return;
+    }
     const id = state.pos;
     const pos = POSITIONS[id];
-    const role = getRole(state.play, state.variation, id);
+    const role = getRole(state.play, state.variation, id, isFlipped());
     const align = ALIGNMENT[id];
     const drill = PRACTICE[pos.group];
     const isRunPlay = state.variation.kind === 'run';
@@ -431,7 +605,7 @@
       el('span', { class: `role-dot${isSonicRunner(id) ? ' sonic' : ''}`, text: `#${pos.num}` }),
       el('div', {}, [
         el('h3', { text: `${posName(id)}` }),
-        el('p', { class: 'spot-line', text: `${kidFor(id)} is #${pos.num} in Rotation ${state.rotation}. The number is the same on every play.` }),
+        el('p', { class: 'spot-line', text: `${kidFor(id)} is #${pos.num} in ${seriesLabel()}. The number is the same on every play.` }),
         isSonicRunner(id) ? el('p', { class: 'sonic-tag', text: '⚡ You are SONIC on this play!' }) : el('p', { class: 'muted', text: state.variation.name }),
       ]),
       pos.photo ? el('img', { class: 'role-photo', src: pos.photo, alt: `A Chargers ${pos.name}` }) : null,
@@ -467,13 +641,14 @@
   // Play name as the QB says it. Runs add the direction unless the name has it (Sonic Run Left).
   function playCallName() {
     const v = state.variation;
+    if (v.callName) return v.callName(state.left);
     if (v.kind === 'pass' || v.direction) return v.name;
     return `${v.name} ${state.left ? 'Left' : 'Right'}`;
   }
 
   // The three huddle lines: play x2, cadence x2, then the break.
   function huddleLines() {
-    const play = `${playCallName()} ${kidFor(state.scene.carrier)}.`;
+    const play = state.target === ANY ? `${playCallName()}, QB's choice.` : `${playCallName()} ${kidFor(state.scene.carrier)}.`;
     const count = CADENCES.find((c) => c.id === state.cadence).call;
     const cadence = `${count.charAt(0).toUpperCase()}${count.slice(1)}.`;
     return [
@@ -484,6 +659,8 @@
   }
 
   function renderScribe() {
+    $('scribe').hidden = isDefense();
+    if (isDefense()) return;
     const lines = huddleLines();
     $('scribe').replaceChildren(
       el('p', { class: 'scribe-label', text: 'Huddle Call (What the QB Says)' }),
@@ -506,7 +683,24 @@
     speechSynthesis.speak(utter);
   }
 
-  // ---------- Find your player: one kid across every rotation ----------
+  // ---------- Find your player: one kid across every series ----------
+
+  // Where a kid is in each series: break, offense spot number, or defense spot.
+  function kidSeries(kid) {
+    return state.plan.series.map((series, index) => {
+      const onBreak = GamePlan.breaks(series, state.size, Roster.KIDS).includes(kid);
+      if (series.side === 'D') {
+        return { index, side: 'D', onBreak, def: onBreak ? null : Object.keys(series.d).find((p) => series.d[p] === kid) };
+      }
+      const num = series.o.indexOf(kid) + 1;
+      return { index, side: 'O', onBreak, num, id: idForNum(num) };
+    });
+  }
+
+  function spotShort(x) {
+    if (x.onBreak) return 'break';
+    return x.side === 'O' ? `#${x.num} ${POSITIONS[x.id].short}` : posLabel(x.def);
+  }
 
   function renderKids() {
     $('kid-picker').replaceChildren(...Roster.KIDS.map((kid) =>
@@ -520,25 +714,25 @@
     ));
     const card = $('kid-card');
     if (!state.kid) {
-      card.replaceChildren(el('p', { class: 'muted', text: "Tap your player's name to see their spot in each rotation and what to practice." }));
+      card.replaceChildren(el('p', { class: 'muted', text: "Tap your player's name to see their spot in each series and what to practice." }));
       return;
     }
-    const spots = Roster.spotsFor(state.kid).map((s) => ({ ...s, id: idForNum(s.num) }));
-    const current = spots.find((s) => s.rotation === state.rotation);
-    const others = spots.filter((s) => s !== current);
-    const drill = PRACTICE[POSITIONS[current.id].group];
+    const spots = kidSeries(state.kid);
+    const current = spots[state.series];
+    const offense = spots.find((x) => x.side === 'O' && !x.onBreak);
+    const drill = PRACTICE[POSITIONS[offense ? offense.id : 'QB'].group];
     card.replaceChildren(
-      rotationCard(current),
+      seriesCard(current),
       el('div', { class: 'kid-other' }, [
-        el('span', { class: 'kid-other-label', text: 'Other rotations:' }),
-        ...others.map((s) => el('button', {
+        el('span', { class: 'kid-other-label', text: 'Every series:' }),
+        ...spots.filter((x) => x !== current).map((x) => el('button', {
           type: 'button',
           class: 'chip chip-sm',
-          onclick: () => setRotation(s.rotation),
-          text: `Rotation ${s.rotation}: #${s.num} ${POSITIONS[s.id].short}`,
+          onclick: () => setSeries(x.index),
+          text: `${seriesLabel(x.index)}: ${spotShort(x)}`,
         })),
       ]),
-      el('h3', { class: 'kid-practice-title', text: `What ${state.kid} should practice for Rotation ${state.rotation}` }),
+      el('h3', { class: 'kid-practice-title', text: `What ${state.kid} should practice` }),
       el('div', { class: 'kid-practice' }, [
         el('h4', { text: `\u{1F3E1} ${drill.title}` }),
         el('ol', {}, drill.steps.map((t) => el('li', { text: t }))),
@@ -546,33 +740,59 @@
     );
   }
 
-  function rotationCard({ rotation, num, id }) {
+  function seriesCard(x) {
+    const label = `This game: ${seriesLabel(x.index)}`;
+    if (x.onBreak) {
+      return el('article', { class: 'kid-rotation' }, [
+        el('div', { class: 'kid-rotation-head' }, [
+          el('span', { class: 'role-dot break-dot', text: '\u{1F964}' }),
+          el('div', {}, [el('p', { class: 'kid-rotation-label', text: label }), el('h4', { text: 'On break. Get a drink and cheer!' })]),
+        ]),
+      ]);
+    }
+    if (x.side === 'D') {
+      return el('article', { class: 'kid-rotation' }, [
+        el('div', { class: 'kid-rotation-head' }, [
+          el('span', { class: 'role-dot defender', text: DEFENSE.positions[x.def].short }),
+          el('div', {}, [el('p', { class: 'kid-rotation-label', text: label }), el('h4', { text: posName(x.def) })]),
+        ]),
+        el('ul', { class: 'kid-jobs' }, [el('li', {}, [el('b', { text: `${DEFENSE.name}: ` }), document.createTextNode(DEFENSE.roles[x.def].job)])]),
+        el('button', { type: 'button', class: 'btn', onclick: () => showOnField(x.index, x.def), text: '\u{1F3C8} Show me on the field' }),
+      ]);
+    }
     const boom = PLAYS.find((p) => p.id === 'boom');
     const sonic = PLAYS.find((p) => p.id === 'sonic');
     const jobs = [
-      ['Boom Pass', getRole(boom, boom.variations.find((v) => v.kind === 'pass'), id).job],
-      ['Boom Handoff', getRole(boom, boom.variations.find((v) => v.group === 'handoff'), id).job],
-      ['Sonic', getRole(sonic, sonic.variations[0], id).job],
+      ['Boom Pass', getRole(boom, boom.variations.find((v) => v.kind === 'pass'), x.id).job],
+      ['Boom Handoff', getRole(boom, boom.variations.find((v) => v.group === 'handoff'), x.id).job],
+      ['Sonic', getRole(sonic, sonic.variations[0], x.id).job],
     ];
-    const sits = TEAM_SIZES.filter((n) => sitsOut(id, n)).map((n) => `${n} v ${n}`);
     return el('article', { class: 'kid-rotation' }, [
       el('div', { class: 'kid-rotation-head' }, [
-        el('span', { class: 'role-dot', text: `#${num}` }),
-        el('div', {}, [
-          el('p', { class: 'kid-rotation-label', text: `This game: Rotation ${rotation}` }),
-          el('h4', { text: posName(id) }),
-        ]),
+        el('span', { class: 'role-dot', text: `#${x.num}` }),
+        el('div', {}, [el('p', { class: 'kid-rotation-label', text: label }), el('h4', { text: posName(x.id) })]),
       ]),
       el('ul', { class: 'kid-jobs' }, jobs.map(([play, job]) => el('li', {}, [el('b', { text: `${play}: ` }), document.createTextNode(job)]))),
-      sits.length ? el('p', { class: 'kid-sits', text: `Sits out in ${sits.join(' and ')}.` }) : null,
-      el('button', { type: 'button', class: 'btn', onclick: () => showOnField(rotation, id), text: '\u{1F3C8} Show me on the field' }),
+      el('button', { type: 'button', class: 'btn', onclick: () => showOnField(x.index, x.id), text: '\u{1F3C8} Show me on the field' }),
     ]);
   }
 
   function renderTeam() {
+    if (isDefense()) {
+      $('team-list').replaceChildren(...DEFENSE.order.map((id) => {
+        const kid = kidFor(id);
+        return el('li', { class: id === state.pos ? 'active' : '' }, [
+          el('button', { type: 'button', class: 'team-btn', onclick: () => selectPos(id) }, [
+            el('span', { class: 'team-dot defender', text: DEFENSE.positions[id].short }),
+            el('span', {}, [el('b', { text: `${posName(id)}${kid ? ` ${kid}` : ''}: ` }), document.createTextNode(DEFENSE.roles[id].job)]),
+          ]),
+        ]);
+      }));
+      return;
+    }
     $('team-list').replaceChildren(
       ...ORDER.map((id) => {
-        const role = getRole(state.play, state.variation, id);
+        const role = getRole(state.play, state.variation, id, isFlipped());
         const out = sitsOut(id, state.size);
         const job = out ? `Sits out in ${state.size} v ${state.size}.` : role.job;
         return el('li', { class: `${id === state.pos ? 'active' : ''}${out ? ' out' : ''}` }, [
@@ -586,6 +806,7 @@
   }
 
   function renderWristband() {
+    document.querySelector('.wristband').hidden = isDefense();
     const v = state.variation;
     $('card-img').src = v.card;
     $('card-img').alt = `Wristband card for ${v.name}`;
@@ -608,8 +829,10 @@
       return;
     }
     const clean = (t) => t.replace(/[\p{Extended_Pictographic}️↔-➿⬅-⬇]/gu, '').trim();
+    const kid = kidFor(id);
+    const who = POSITIONS[id] ? `${kid}, number ${POSITIONS[id].num}.` : kid ? `${kid}.` : '';
     const lines = [
-      `${kidFor(id)}, number ${POSITIONS[id].num}. ${posName(id)}.`,
+      `${who} ${posName(id)}.`,
       'Where do I stand?', ...align.kid,
       'What is my job?', role.job,
       'How do I do it?', ...role.how,
@@ -619,15 +842,224 @@
     speechSynthesis.speak(utter);
   }
 
+  // ---------- Game plan sidebar: series, breaks, lineups ----------
+
+  const planOpts = () => ({
+    size: state.size,
+    defOrder: DEFENSE.order,
+    groupOf: Object.fromEntries(DEFENSE.order.map((id) => [id, DEFENSE.positions[id].group])),
+    prefs: Roster.DEFENSE_PREFS,
+    rotations: Roster.ROTATIONS,
+  });
+
+  function defaultPlan() {
+    if (GamePlan.isValid(Roster.GAME_PLAN, Roster.KIDS, DEFENSE.order)) {
+      return GamePlan.repeatPattern(Roster.GAME_PLAN, Math.max(GamePlan.DEFAULT_SERIES, Roster.GAME_PLAN.series.length));
+    }
+    return GamePlan.autoPlan(Roster.KIDS, planOpts());
+  }
+
+  function loadPlan() {
+    let saved = null;
+    try {
+      saved = JSON.parse(localStorage.getItem(PLAN_KEY));
+    } catch (err) {
+      console.warn('Could not read the saved game plan on this device:', err.message);
+    }
+    state.plan = GamePlan.isValid(saved, Roster.KIDS, DEFENSE.order) ? saved : defaultPlan();
+  }
+
+  function savePlan() {
+    try {
+      localStorage.setItem(PLAN_KEY, JSON.stringify(state.plan));
+    } catch (err) {
+      console.warn('Could not save the game plan on this device:', err.message);
+    }
+  }
+
+  // A shared link (?plan=...) replaces this device's plan.
+  function importSharedPlan(text) {
+    if (!text) return;
+    const plan = GamePlan.decode(text);
+    if (!GamePlan.isValid(plan, Roster.KIDS, DEFENSE.order)) {
+      console.warn('The shared game plan link is not valid. Keeping the plan on this device.');
+      return;
+    }
+    state.plan = plan;
+    savePlan();
+  }
+
+  function changePlan(next) {
+    state.plan = next;
+    state.series = Math.min(state.series, state.plan.series.length - 1);
+    savePlan();
+    renderAll();
+  }
+
+  function changeSeries(i, fn) {
+    changePlan({ series: state.plan.series.map((x, j) => (j === i ? fn(x) : x)) });
+  }
+
+  function lineupList(rows) {
+    return el('ul', { class: 'gp-lineup' }, rows.map(([label, kid]) =>
+      el('li', {}, [el('span', { class: 'gp-pos', text: label }), el('span', { class: 'gp-kid', text: kid })]),
+    ));
+  }
+
+  function breaksAt(i) {
+    return GamePlan.breaks(state.plan.series[i], state.size, Roster.KIDS);
+  }
+
+  function breakNames(i) {
+    const names = breaksAt(i);
+    return names.length ? names.join(', ') : 'Nobody';
+  }
+
+  function lineupRows(series) {
+    if (series.side === 'D') return DEFENSE.order.map((id) => [posLabel(id), series.d[id]]);
+    return onField().map((id) => [posLabel(id), series.o[POSITIONS[id].num - 1]]);
+  }
+
+  function renderGamePlan() {
+    const total = state.plan.series.length;
+    const series = currentSeries();
+    const next = state.series + 1 < total ? state.series + 1 : null;
+    const backIn = next === null ? [] : breaksAt(state.series).filter((k) => !breaksAt(next).includes(k));
+    $('gp-toggle').textContent = `\u{1F4CB} ${seriesLabel()} \u00B7 Break: ${breakNames(state.series)}`;
+    $('gp-now').replaceChildren(
+      el('div', { class: 'gp-nav' }, [
+        el('button', { type: 'button', class: 'btn gp-step', 'aria-label': 'Previous series', disabled: state.series === 0 ? 'disabled' : null, onclick: () => setSeries(state.series - 1), text: '\u25C0' }),
+        el('div', { class: 'gp-title' }, [
+          el('b', { class: `gp-side-text gp-side-text-${series.side}`, text: seriesLabel() }),
+          el('span', { class: 'muted gp-count', text: `Series ${state.series + 1} of ${total}` }),
+        ]),
+        el('button', { type: 'button', class: 'btn gp-step', 'aria-label': 'Next series', disabled: next === null ? 'disabled' : null, onclick: () => setSeries(state.series + 1), text: '\u25B6' }),
+      ]),
+      optionGroup('Players:', TEAM_SIZES.map((n) => ({ label: `${n} v ${n}`, active: state.size === n, onclick: () => setSize(n) }))),
+      el('p', { class: 'gp-break' }, [el('b', { text: '\u{1F964} On break: ' }), document.createTextNode(breakNames(state.series))]),
+      el('h3', { class: 'gp-sub', text: series.side === 'O' ? 'Offense' : `Defense (${DEFENSE.name})` }),
+      lineupList(lineupRows(series)),
+      el('p', { class: 'muted gp-next', text: next === null
+        ? 'Last series in the plan. Add more in Edit the plan.'
+        : `Next: ${seriesLabel(next)}. Break: ${breakNames(next)}.${backIn.length ? ` Back in: ${backIn.join(', ')}.` : ''}` }),
+    );
+    renderPlanEditor();
+  }
+
+  // Option labels show Coach's defensive spots: a star is where the kid mostly plays.
+  function kidSelect(label, value, options, onchange) {
+    return el('label', { class: 'gp-field' }, [
+      el('span', { class: 'gp-pos', text: label }),
+      el('select', { onchange: (e) => onchange(e.target.value) }, options.map(([k, text]) => el('option', { value: k, selected: k === value ? 'selected' : null, text }))),
+    ]);
+  }
+
+  function defenseOptions(pos) {
+    const group = DEFENSE.positions[pos].group;
+    return Roster.KIDS.map((k) => {
+      const fit = (Roster.DEFENSE_PREFS[k] || {})[group] || 0;
+      return [k, `${k}${fit === 3 ? ' \u2605' : fit ? '' : ' (not usual)'}`];
+    });
+  }
+
+  function renderPlanEditor() {
+    const total = state.plan.series.length;
+    const plain = Roster.KIDS.map((k) => [k, k]);
+    const cards = state.plan.series.map((series, i) => {
+      const fields = series.side === 'O'
+        ? Array.from({ length: GamePlan.SPOTS }, (_, n) => n + 1).map((num) =>
+          kidSelect(num <= state.size ? posLabel(idForNum(num)) : 'Break', series.o[num - 1], plain, (kid) => changeSeries(i, (x) => GamePlan.setOffense(x, num, kid))))
+        : DEFENSE.order.map((pos) =>
+          kidSelect(posLabel(pos), series.d[pos], defenseOptions(pos), (kid) => changeSeries(i, (x) => GamePlan.setDefense(x, pos, kid))));
+      return el('details', { class: 'gp-series', open: i === state.series ? 'open' : null }, [
+        el('summary', { text: `${seriesLabel(i)} \u00B7 Break: ${breakNames(i)}` }),
+        el('p', { class: 'gp-sub', text: series.side === 'O' ? 'Picking a kid swaps them' : 'Picking a kid swaps them. \u2605 = where they mostly play' }),
+        ...fields,
+      ]);
+    });
+    $('gp-editor').replaceChildren(
+      el('div', { class: 'gp-actions' }, [
+        el('button', { type: 'button', class: 'btn', onclick: autoFillPlan, text: '\u{1F504} Auto-fill fair breaks' }),
+        el('button', { type: 'button', class: 'btn', onclick: flipStart, text: `\u21C5 Start on ${state.plan.series[0].side === 'O' ? 'defense' : 'offense'}` }),
+        el('button', { type: 'button', class: 'btn', onclick: repeatToFull, text: `\u{1F501} Repeat pattern to ${GamePlan.DEFAULT_SERIES}` }),
+        el('button', { type: 'button', class: 'btn', onclick: addSeries, text: '\u2795 Add series' }),
+        el('button', { type: 'button', class: 'btn', disabled: total <= 1 ? 'disabled' : null, onclick: removeLastSeries, text: '\u2796 Remove last' }),
+        el('button', { type: 'button', class: 'btn', onclick: sharePlan, text: '\u{1F517} Share plan link' }),
+        el('div', { class: 'gp-share', id: 'gp-share' }),
+      ]),
+      ...backToBackWarnings(),
+      ...cards,
+    );
+  }
+
+  // Someone sitting two series in a row (often where a repeated pattern starts over).
+  function backToBackWarnings() {
+    return GamePlan.backToBack(state.plan, state.size, Roster.KIDS).map(({ at, kids }) =>
+      el('p', { class: 'gp-warn', text: `\u26A0\uFE0F ${kids.join(' and ')} sit${kids.length === 1 ? 's' : ''} ${seriesLabel(at - 1)} and ${seriesLabel(at)} in a row.` }));
+  }
+
+  // Coach's first series, repeated to fill 8 offense and 8 defense series.
+  function repeatToFull() {
+    changePlan(GamePlan.repeatPattern(state.plan, GamePlan.DEFAULT_SERIES));
+  }
+
+  function autoFillPlan() {
+    if (!confirm('Replace every series with a fair rotation? Breaks go between series, nobody sits twice in a row, and defense follows the spots each kid plays.')) return;
+    changePlan(GamePlan.autoPlan(Roster.KIDS, { ...planOpts(), count: Math.max(state.plan.series.length, 2), start: state.plan.series[0].side }));
+  }
+
+  // Coin toss went the other way: rebuild the plan starting on the other side.
+  function flipStart() {
+    const start = state.plan.series[0].side === 'O' ? 'D' : 'O';
+    changePlan(GamePlan.autoPlan(Roster.KIDS, { ...planOpts(), count: state.plan.series.length, start }));
+    setSeries(0);
+  }
+
+  // The new series is the other side, with the kids from the previous break back in.
+  function addSeries() {
+    const list = state.plan.series;
+    const auto = GamePlan.autoPlan(Roster.KIDS, { ...planOpts(), count: list.length + 1, start: list[0].side });
+    changePlan({ series: [...list, auto.series[list.length]] });
+  }
+
+  function removeLastSeries() {
+    if (state.plan.series.length <= 1) return;
+    changePlan({ series: state.plan.series.slice(0, -1) });
+  }
+
+  function sharePlan() {
+    const link = `${location.href.split('#')[0]}#${state.play.id}/${state.variation.id}?plan=${GamePlan.encode(state.plan)}`;
+    const input = el('input', { type: 'text', readonly: 'readonly', value: link, 'aria-label': 'Game plan link' });
+    const note = el('p', { class: 'muted', text: 'Copy this link and text it to parents or coaches. Opening it loads this plan.' });
+    $('gp-share').replaceChildren(input, note);
+    input.select();
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(link).then(
+        () => { note.textContent = 'Link copied. Text it to parents or coaches. Opening it loads this plan.'; },
+        (err) => console.warn('Could not copy the link automatically:', err.message),
+      );
+    }
+  }
+
+  function setGamePlanOpen(open) {
+    document.body.classList.toggle('gp-open', open);
+    $('gp-toggle').setAttribute('aria-expanded', String(open));
+  }
+
   // ---------- selection ----------
 
   function rebuildScene() {
     const drop = ORDER.filter((id) => sitsOut(id, state.size));
     const cadence = CADENCES.find((c) => c.id === state.cadence);
-    state.scene = Engine.buildScene(state.variation, { flip: state.left && !!state.variation.flipActors, target: state.target || undefined, drop, late: state.late, cadence });
+    const target = state.target && state.target !== ANY ? state.target : undefined;
+    state.scene = Engine.buildScene(state.variation, { flip: isFlipped(), target, drop, late: state.late, cadence });
     if (state.scene.warnings.length) console.warn('Play timing:', state.scene.warnings);
     drawField();
     resetAnimation();
+    document.querySelector('.controls').hidden = isDefense();
+    document.querySelector('.hint').textContent = isDefense()
+      ? '\u{1F446} Tap a defender to see where they line up.'
+      : '\u{1F446} Tap any player to highlight them.';
   }
 
   function renderAll() {
@@ -640,9 +1072,16 @@
     renderRoleCard();
     renderTeam();
     renderWristband();
+    renderGamePlan();
     rebuildScene();
     renderScribe();
     writeHash();
+  }
+
+  // The version of these that matches the called direction (Sonic), or the first.
+  function sameSide(list) {
+    const dir = state.left ? 'left' : 'right';
+    return list.find((x) => !x.direction || x.direction === dir) || list[0];
   }
 
   // Keep the called direction when switching plays (Sonic opens Run Left if Left is called).
@@ -667,8 +1106,8 @@
 
   function setSize(n) {
     state.size = n;
-    if (state.pos && sitsOut(state.pos, n)) state.pos = null;
-    if (state.target && sitsOut(state.target, n)) {
+    if (!isDefense() && state.pos && sitsOut(state.pos, n)) state.pos = null;
+    if (state.target && state.target !== ANY && sitsOut(state.target, n)) {
       state.target = state.variation.defaultTarget;
       state.late = false;
     }
@@ -691,8 +1130,14 @@
     renderAll();
   }
 
-  function setRotation(id) {
-    state.rotation = id;
+  // Rolling to the next series also switches Coach calls to that side of the ball.
+  function setSeries(i) {
+    state.series = Math.max(0, Math.min(i, state.plan.series.length - 1));
+    const side = currentSeries().side === 'D' ? 'defense' : 'offense';
+    if (side !== state.side) {
+      state.side = side;
+      state.pos = null;
+    }
     renderAll();
   }
 
@@ -703,18 +1148,25 @@
     writeHash();
   }
 
-  // Jump from a kid's rotation card to that spot on the field.
-  function showOnField(rotation, id) {
-    state.rotation = rotation;
-    if (sitsOut(id, state.size)) state.size = 7;
+  // Jump from a kid's series card to that spot on the field.
+  function showOnField(series, id) {
+    state.side = POSITIONS[id] ? 'offense' : 'defense';
+    state.pos = null;
+    state.series = series;
     renderAll();
     if (state.pos !== id) selectPos(id);
     const call = $('call');
     if (call.scrollIntoView) call.scrollIntoView({ behavior: 'smooth', block: 'start' });
   }
 
+  function setSideOfBall(side) {
+    state.side = side;
+    state.pos = null;
+    renderAll();
+  }
+
   function selectPos(id) {
-    if (sitsOut(id, state.size)) return;
+    if (!isDefense() && sitsOut(id, state.size)) return;
     state.pos = state.pos === id ? null : id;
     if ('speechSynthesis' in window) speechSynthesis.cancel();
     renderPicker();
@@ -732,13 +1184,18 @@
     const slow = state.speed !== SLOW;
     state.speed = slow ? SLOW : 1;
     e.currentTarget.setAttribute('aria-pressed', String(slow));
-    e.currentTarget.innerHTML = slow ? '&#x1F422; Slow motion' : '&#x1F407; Full speed';
+    e.currentTarget.innerHTML = slow ? '&#x1F422; Slow' : '&#x1F407; Fast';
+    e.currentTarget.title = slow ? 'Slow motion is on' : 'Full speed';
   });
   window.addEventListener('hashchange', () => {
     readHash();
     renderAll();
   });
 
+  $('gp-toggle').addEventListener('click', () => setGamePlanOpen(!document.body.classList.contains('gp-open')));
+  $('gp-close').addEventListener('click', () => setGamePlanOpen(false));
+
+  loadPlan();
   readHash();
   if (state.kid) $('find-player').open = true;
   renderGlossary();

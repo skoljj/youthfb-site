@@ -1,4 +1,6 @@
 // Team lineups: which kid plays which spot number in each rotation.
+// The game plan (js/gameplan.js) uses each rotation's spots as the offense on
+// offensive series, and DEFENSE_PREFS to place kids on defensive series.
 // Spot numbers are the playbook's (#1 Center ... #7 Inside Receiver Left).
 // Rotation 2 was written with "Everette"; it is the same player as Everett.
 (function (root) {
@@ -9,6 +11,19 @@
   ];
 
   const KIDS = [...new Set(ROTATIONS.flatMap((r) => Object.values(r.spots)))].sort();
+
+  // Defense, from Coach: where each kid plays when they are in.
+  // 3 = primarily, 2 = also (secondarily, or "can play" any of them), 1 = can fill in.
+  // A spot not listed is one the kid does not play right now.
+  const DEFENSE_PREFS = {
+    Everett: { MLB: 3 },
+    Sebastian: { CB: 3, MLB: 2 },
+    Cruz: { S: 3, MLB: 3 },
+    Mia: { S: 3, CB: 1 },
+    Adrian: { CB: 3 },
+    Ellis: { CB: 2, MLB: 2, S: 2 },
+    Jamison: { CB: 2, MLB: 2, S: 2 },
+  };
 
   function kidAt(rotationId, num) {
     const rotation = ROTATIONS.find((r) => r.id === rotationId);
@@ -23,7 +38,25 @@
     }));
   }
 
-  const api = { ROTATIONS, KIDS, kidAt, spotsFor };
+  // Coach's game plan: the first 8 series (4 offense, 4 defense), repeated to
+  // fill the game. Offense lists spots #1..#7 (#6 and #7 rest in 5 v 5).
+  // Defense: everyone not listed rests. Every visitor starts with this plan.
+  const O = (...kids) => ({ side: 'O', o: kids });
+  const D = (CBL, MLB, CBR, SL, SR) => ({ side: 'D', d: { CBL, MLB, CBR, SL, SR } });
+  const GAME_PLAN = {
+    series: [
+      O('Jamison', 'Everett', 'Ellis', 'Sebastian', 'Mia', 'Adrian', 'Cruz'),
+      D('Adrian', 'Cruz', 'Sebastian', 'Jamison', 'Mia'),
+      O('Adrian', 'Sebastian', 'Everett', 'Cruz', 'Ellis', 'Mia', 'Jamison'),
+      D('Ellis', 'Everett', 'Jamison', 'Cruz', 'Mia'),
+      O('Jamison', 'Everett', 'Adrian', 'Mia', 'Sebastian', 'Cruz', 'Ellis'),
+      D('Adrian', 'Everett', 'Jamison', 'Cruz', 'Ellis'),
+      O('Jamison', 'Cruz', 'Ellis', 'Sebastian', 'Mia', 'Everett', 'Adrian'),
+      D('Adrian', 'Everett', 'Ellis', 'Jamison', 'Cruz'),
+    ],
+  };
+
+  const api = { ROTATIONS, KIDS, DEFENSE_PREFS, GAME_PLAN, kidAt, spotsFor };
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
   else root.Roster = api;
 })(typeof window !== 'undefined' ? window : globalThis);

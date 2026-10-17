@@ -164,6 +164,32 @@
   ];
   const RUN_TIP = 'It is a run play, but run your route HARD anyway. Defenders follow you, and that opens space for the runner.';
 
+  const MIRROR_ID = { ORL: 'ORR', ORR: 'ORL', IRL: 'IRR', IRR: 'IRL' };
+  const swapId = (id) => MIRROR_ID[id] || id;
+
+  // Flip a play left-for-right. The Center keeps their spot on the right of the
+  // ball, so their route is flipped around that spot (a Go stays a Go).
+  function mirrorActors(actors) {
+    const out = {};
+    for (const [id, actor] of Object.entries(actors)) {
+      const cx = id === 'C' ? actor.path[0][0] : 0;
+      out[swapId(id)] = { ...actor, path: actor.path.map(([x, y]) => [2 * cx - x, y]) };
+    }
+    return out;
+  }
+
+  // The mirror image of a whole variation: who carries the ball swaps too.
+  // Used by plays where more than the QB and RB change sides (Reverse, RB Pass).
+  function mirrorPlay({ actors, events = [], captions = [] }) {
+    return {
+      actors: mirrorActors(actors),
+      events: events.map((e) => ({ ...e, to: e.to === '$target' ? e.to : swapId(e.to) })),
+      captions: captions.map((c) => ({ ...c, actor: c.actor && swapId(c.actor) })),
+    };
+  }
+
+  const NEW_PLAY_COACH = 'New play. Not on the coach sheet yet.';
+
   const SWING_PATH = [[0, -4.2], [2, -4.7], [4, -4], [5, -3]];
   const go = (x) => ({ path: [[x, 0], [x, 15]], speed: 5 });
   const QB_SPOT = POSITIONS.QB.start;
@@ -176,6 +202,20 @@
     IRR: go(3),
     ORR: { path: [[6, 0], [6, 5], [2.5, 5]], speed: 4.5 },
   };
+  // Trick passes: the Center snaps, then runs an angle toward the side the thrower rolls to.
+  const centerAngle = (side) => ({ path: [[0.7, -0.3], [0.7, 2.5], [0.7 + side * 3.8, 4.5]], speed: 3.5, delay: 0.4 });
+  const CENTER_ANGLE_ROLE = (DIR) => ({
+    job: `First SNAP the ball. Then run an angle to the ${DIR}. You are the first read!`,
+    how: [
+      '\u{1F3C8} Snap the ball back to the QB on the cadence.',
+      '\u{1F4A8} Run 3 big steps straight up the field.',
+      `\u2197\uFE0F Cut on a slant toward the ${DIR} sideline.`,
+      '\u{1F440} Look back for the ball. Hands up and ready.',
+      CATCH,
+    ],
+    coach: [NEW_PLAY_COACH, `Assignment: Snap on cadence, then angle route to the ${DIR.toLowerCase()} (3 yds up, break at 45 degrees toward the roll-out side).`],
+  });
+
   // Same In route as BOOM_ROUTES for the first 3 points (all the diagram draws).
   const BOOM_CROSSERS = {
     ORL: { path: [[-6, 0], [-6, 5], [-2.5, 5], [-1.5, 7], [5.5, 7]], speed: 4.5, drawn: 3, holds: SETTLE },
@@ -399,8 +439,119 @@
           },
         },
       },
+      rbPass(),
+      boomReverse(),
     ],
   };
+
+  // Boom RB Pass (drawn to the Right): the QB tosses, the RB rolls out and throws.
+  // The Center runs the angle to the roll-out side and is the first read.
+  function rbPass() {
+    const right = {
+      actors: {
+        ...BOOM_ROUTES,
+        C: centerAngle(1),
+        QB: { path: [QB_SPOT, [0.8, -1.5]], speed: 2.5, delay: 0.3 },
+        RB: { path: [[0, -4.2], [2, -3.1], [4.5, -2.6], [5.5, -2.2]], speed: 4, delay: 0.25 },
+      },
+      events: [{ type: 'toss', to: 'RB', waypoint: 1 }, { type: 'throw', to: '$target' }],
+    };
+    const roles = (DIR) => ({
+      C: CENTER_ANGLE_ROLE(DIR),
+      QB: {
+        job: 'Take the snap and toss the ball to the Running Back. Then let the RB throw it!',
+        how: [...QB_START, `\u27A1\uFE0F First step goes to the ${DIR}.`, '\u{1F3C8} Softly toss the ball to the RB\'s hands.', '\u{1F6E1}\uFE0F Stay back and watch the RB throw.'],
+        coach: [NEW_PLAY_COACH, QB_ALL_COACH, 'Toss to the RB as on the toss-sweep.'],
+      },
+      RB: {
+        job: `Catch the toss, roll out to the ${DIR}, and THROW to the Center.`,
+        how: [
+          `\u27A1\uFE0F First step goes to the ${DIR}.`,
+          '\u{1F3C8} Catch the toss with two hands.',
+          `\u{1F3C3} Keep running to the ${DIR}, behind the line. Don't cross it!`,
+          '\u{1F440} Find the Center on the angle.',
+          '\u{1F449} Set your feet, point your shoulder, and throw!',
+        ],
+        coach: [NEW_PLAY_COACH, `Assignment: Catch the toss, roll out ${DIR.toLowerCase()} behind the LOS, throw. First read: Center on the angle.`],
+      },
+    });
+    return {
+      id: 'rbpass',
+      group: 'handoff',
+      short: 'RB Pass',
+      name: 'Boom RB Pass',
+      callName: (left) => `Boom RB Pass ${left ? 'Left' : 'Right'}`,
+      kind: 'pass',
+      card: 'assets/img/card-boom-pass.png',
+      cardNote: 'No wristband picture for this one yet. It starts like Boom Toss, then the RB rolls out and throws.',
+      summary: 'Trick play! The QB tosses to the RB, who rolls out and throws. The Center runs an angle to that side.',
+      flipActors: ['QB', 'RB'],
+      targets: ['ORL', 'IRL', 'C', 'IRR', 'ORR'],
+      defaultTarget: 'C',
+      ...right,
+      roles: roles('RIGHT'),
+      flipped: { ...mirrorPlay(right), roles: roles('LEFT') },
+    };
+  }
+
+  // Boom Handoff Reverse (drawn as "Boom Handoff Right, Reverse Left"): the RB
+  // takes the handoff to the called side and hands it to that side's Outside
+  // Receiver (#4 on Right), who comes back the other way.
+  function boomReverse() {
+    const right = {
+      actors: {
+        ...BOOM_ROUTES,
+        QB: { path: [QB_SPOT, [-0.3, -1.8], [0.6, -2.3]], speed: 2.5, delay: 0.3 },
+        RB: { path: [[0, -4.2], [1.3, -2.5], [3, -2.2], [4.6, -1], [5.2, 2]], speed: 4, delay: 0.25 },
+        ORR: { path: [[6, 0], [5.4, -1.4], [3.4, -2.4], [0, -3.3], [-3.5, -2.2], [-4.6, 0.5], [-4.8, 8]], speed: 4.6, delay: 0.5 },
+      },
+      events: [{ type: 'hand', to: 'RB', waypoint: 1 }, { type: 'hand', to: 'ORR', waypoint: 2, label: 'Reverse!' }],
+    };
+    const roles = (DIR, AWAY, wr) => ({
+      QB: {
+        job: 'Take the snap and hand the ball to the Running Back.',
+        how: [...QB_START, `\u{1F504} Drop-step: spin back, opening to the ${DIR}.`, '\u{1F463} Take one more step toward the RB.', '\u{1F440} Watch your hand put the ball right in the RB\'s tummy.'],
+        coach: [NEW_PLAY_COACH, QB_ALL_COACH, `Reverse: ${QB_HANDOFF_COACH}`],
+      },
+      RB: {
+        job: `Take the handoff going ${DIR}, then hand it to #${wr} coming back the other way.`,
+        how: [
+          `\u27A1\uFE0F First step goes to the ${DIR}.`,
+          '\u{1F917} Take the handoff. Clamp down on the ball.',
+          `\u{1F440} Look for #${wr} running toward you, behind the line.`,
+          `\u{1F91D} Put the ball in #${wr}'s tummy.`,
+          `\u{1F3AD} Keep running ${DIR} like you still have it!`,
+        ],
+        coach: [NEW_PLAY_COACH, `Assignment: Take the handoff to the ${DIR.toLowerCase()}, hand off to the playside WR (#${wr}) on the reverse, carry out the fake.`],
+      },
+      [wr === 4 ? 'ORR' : 'ORL']: {
+        job: `REVERSE! Come back behind the line, take the ball from the RB, and run up the ${AWAY} side.`,
+        how: [
+          '\u{1F440} Watch the ball. Go when it is snapped!',
+          '\u2B05\uFE0F Step back and run behind the QB, toward the other side.',
+          '\u{1F440} Find the RB coming at you. Make a pocket for the ball.',
+          '\u{1F917} Take the ball and clamp down.',
+          `\u2B06\uFE0F EXPLODE up the field on the ${AWAY} side!`,
+        ],
+        coach: [NEW_PLAY_COACH, `Assignment: Reverse. Come back behind the LOS, take the handoff from the RB, run to the ${AWAY.toLowerCase()}.`],
+      },
+    });
+    return {
+      id: 'reverse',
+      group: 'handoff',
+      short: 'Reverse',
+      name: 'Boom Handoff Reverse',
+      callName: (left) => (left ? 'Boom Handoff Left, Reverse Right' : 'Boom Handoff Right, Reverse Left'),
+      kind: 'run',
+      card: 'assets/img/card-boom-run.png',
+      cardNote: 'No wristband picture for this one yet. The RB takes the handoff to the called side and hands it to that side\'s Outside Receiver going the other way.',
+      summary: 'The RB takes the handoff to the called side, then hands it to the Outside Receiver on that side, who runs the other way.',
+      flipActors: ['QB', 'RB'],
+      ...right,
+      roles: roles('RIGHT', 'LEFT', 4),
+      flipped: { ...mirrorPlay(right), roles: roles('LEFT', 'RIGHT', 5) },
+    };
+  }
 
   // Sonic Run Left follows the wristband card (Frame 7): #4 (right outside
   // receiver) motions across and runs LEFT. Sonic Run Right is the mirror:
@@ -415,16 +566,6 @@
     QB: { path: [QB_SPOT, [0.4, -1.8]], speed: 2, delay: 0.35 },
     RB: { path: SWING_PATH, speed: 4.5 },
   };
-  const MIRROR_ID = { ORL: 'ORR', ORR: 'ORL', IRL: 'IRR', IRR: 'IRL' };
-
-  // Flip a play left-for-right. The Center keeps their spot on the right of the ball.
-  function mirrorActors(actors) {
-    const out = {};
-    for (const [id, actor] of Object.entries(actors)) {
-      out[MIRROR_ID[id] || id] = id === 'C' ? actor : { ...actor, path: actor.path.map(([x, y]) => [0 - x, y]) };
-    }
-    return out;
-  }
 
   const SONIC_MOTION_COACH = [
     'Assignment: Speed motion, receive handoff.',
@@ -442,6 +583,7 @@
     return {
       id: dir,
       group: 'handoff',
+      short: 'Run',
       direction: dir,
       name: `Sonic Run ${left ? 'Left' : 'Right'}`,
       kind: 'run',
@@ -482,12 +624,170 @@
     };
   }
 
+  // Sonic tricks, drawn for Left (#4 is Sonic) and mirrored for Right. They all
+  // start with the same motion; what happens to the ball changes.
+  const sonicMotion = (rest) => ({ path: [[6, 0], [5, -1.8], [1, -2.3], ...rest], speed: 5, delay: -0.6, startOn: 'Down' });
+  const GO_SONIC = { job: 'Run a GO route: straight down the field, super far.', how: GO_HOW, coach: GO_COACH };
+  const SONIC_TRICKS = {
+    // Play-action: the QB fakes to Sonic and throws. First read is the RB swing.
+    fake: {
+      group: 'pass',
+      short: 'Fake handoff',
+      name: 'Sonic Pass',
+      kind: 'pass',
+      left: {
+        actors: {
+          ...SONIC_LEFT,
+          QB: { path: [QB_SPOT, [0.4, -1.8], [0.1, -3.3]], speed: 2, delay: 0.35, holds: { 1: 0.35 } },
+        },
+        events: [{ type: 'throw', to: '$target' }],
+        captions: [{ actor: 'ORR', waypoint: 0, offset: 0.15, text: 'Go, Sonic!' }, { actor: 'ORR', waypoint: 2, text: 'Fake!' }],
+      },
+      targets: ['ORL', 'IRL', 'C', 'IRR', 'ORR', 'RB'],
+      defaultTarget: 'RB',
+      qbChoice: true,
+      summary: (n, DIR, AWAY) => `#${n} zooms across and the QB FAKES the handoff, then throws. First look: the RB swinging ${AWAY}. Coach can call a target or say QB's choice.`,
+    },
+    // Sonic takes the handoff and hands it to the other Outside Receiver coming back.
+    reverse: {
+      group: 'handoff',
+      short: 'Reverse',
+      name: 'Sonic Reverse',
+      kind: 'run',
+      left: {
+        actors: {
+          ...SONIC_LEFT,
+          ORR: sonicMotion([[-2.2, -2.4], [-3.6, -1.6]]),
+          ORL: { path: [[-6, 0], [-4.8, -2], [-2, -3], [2, -3.2], [4.6, -1], [5.2, 8]], speed: 5, delay: 0.2 },
+          RB: { path: [[0, -4.2], [2.5, -4.6], [4.5, -3.2], [6, 0.5], [6.2, 3]], speed: 4.2, delay: 0.3 },
+        },
+        events: [{ type: 'hand', to: 'ORR', waypoint: 2 }, { type: 'hand', to: 'ORL', waypoint: 2, label: 'Reverse!' }],
+        captions: [{ actor: 'ORR', waypoint: 0, offset: 0.15, text: 'Go, Sonic!' }],
+      },
+      summary: (n, DIR, AWAY, m) => `#${n} is Sonic and takes the handoff going ${DIR}, then hands it to #${m} coming back. #${m} runs up the ${AWAY} side.`,
+    },
+    // Sonic takes the handoff, rolls out, and throws. The Center runs the angle to that side.
+    wrpass: {
+      group: 'pass',
+      short: 'WR Pass',
+      name: 'Sonic WR Pass',
+      kind: 'pass',
+      left: {
+        actors: { ...SONIC_LEFT, ORR: sonicMotion([[-2, -2.6], [-3.4, -2.4]]), C: centerAngle(-1) },
+        events: [{ type: 'hand', to: 'ORR', waypoint: 2 }, { type: 'throw', to: '$target' }],
+        captions: [{ actor: 'ORR', waypoint: 0, offset: 0.15, text: 'Go, Sonic!' }],
+      },
+      targets: ['ORL', 'IRL', 'C', 'IRR', 'RB'],
+      defaultTarget: 'C',
+      summary: (n, DIR) => `Trick play! #${n} zooms across, takes the handoff, rolls out ${DIR}, and throws. The Center runs an angle to the ${DIR}.`,
+    },
+  };
+
+  function sonicTrickRoles(kind, runner, other, DIR, AWAY) {
+    const m = POSITIONS[other].num;
+    const motion = ['\u{1F4E3} When the QB says "Down", start running toward the QB.', '\u{1F4A8} Zoom across, behind the QB and in front of the RB.'];
+    if (kind === 'fake') {
+      return {
+        [runner]: {
+          job: `You are SONIC! Zoom across, take the FAKE, and keep running up the ${DIR} side like you have the ball.`,
+          how: [...motion, '\u{1F3AD} Make a pocket like you got the ball. Sell it!', `\u2B06\uFE0F Keep running up the ${DIR} side.`, '\u{1F440} Look back. The ball might come to you!'],
+          coach: [NEW_PLAY_COACH, 'Assignment: Speed motion on "Down", sell the fake handoff, continue up the field as a receiver.'],
+        },
+        [other]: GO_SONIC,
+        QB: {
+          job: `Fake the handoff to Sonic, step back, and throw. First look: the RB swinging ${AWAY}.`,
+          how: [
+            '\u{1F4E3} Call the cadence LOUD. Sonic starts running when you say "Down".',
+            CADENCE_STEP,
+            '\u{1F3C8} Catch the snap with two hands.',
+            '\u{1F3AD} Hold the ball out to Sonic, then pull it back. Fake!',
+            '\u2B07\uFE0F Take steps straight back.',
+            `1\uFE0F\u20E3 First look: the RB swinging to the ${AWAY}.`,
+            "\u{1F914} Coach may call a different friend, or say QB's choice: throw to whoever is open.",
+            '\u{1F4AA} Point your shoulder and throw!',
+          ],
+          coach: [NEW_PLAY_COACH, QB_ALL_COACH, "Play-action: fake to Sonic, straight drop, throw. First read RB swing unless Coach calls a target or QB's choice."],
+        },
+        RB: {
+          job: `Run your banana (Swing) to the ${AWAY}. You are the first read!`,
+          how: [`\u27A1\uFE0F First step goes sideways to the ${AWAY}.`, '\u{1F34C} Curve out like a banana.', '\u{1F440} Turn your head early and find the QB.', HANDS, CATCH],
+          coach: [NEW_PLAY_COACH, `Assignment: Swing ${AWAY.toLowerCase()}, first read on the pass.`],
+        },
+      };
+    }
+    if (kind === 'reverse') {
+      return {
+        [runner]: {
+          job: `You are SONIC! Take the handoff going ${DIR}, then hand it to #${m} coming back.`,
+          how: [...motion, '\u{1F917} Take the handoff and tuck it.', `\u{1F440} Find #${m} running at you, behind the line.`, `\u{1F91D} Put the ball in #${m}'s tummy, then keep running ${DIR} like you have it!`],
+          coach: [NEW_PLAY_COACH, ...SONIC_MOTION_COACH, `Then hand off to #${m} on the reverse and carry out the fake.`],
+        },
+        [other]: {
+          job: `REVERSE! Come back behind the line, take the ball from Sonic, and run up the ${AWAY} side.`,
+          how: [
+            '\u{1F440} Watch the ball. Go when it is snapped!',
+            '\u{1F519} Run back behind the line, toward Sonic.',
+            '\u{1F440} Make a pocket for the ball. Watch it in.',
+            '\u{1F917} Take the ball from Sonic and clamp down.',
+            `\u2B06\uFE0F EXPLODE up the field on the ${AWAY} side!`,
+          ],
+          coach: [NEW_PLAY_COACH, `Assignment: Reverse. Come back behind the LOS, take the handoff from Sonic, run to the ${AWAY.toLowerCase()}.`],
+        },
+        RB: {
+          job: `Run out to the ${AWAY} and lead the way for #${m}!`,
+          how: [`\u27A1\uFE0F First step goes sideways to the ${AWAY}.`, '\u{1F3C3} Get out wide, near the sideline.', `\u2B06\uFE0F Turn up the field in front of #${m}.`, '\u{1F6E1}\uFE0F Stay in front of the runner. Lead the way!'],
+          coach: [NEW_PLAY_COACH, `Assignment: Lead for the reverse, to the ${AWAY.toLowerCase()} edge.`],
+        },
+      };
+    }
+    return {
+      [runner]: {
+        job: `You are SONIC! Take the handoff, roll out to the ${DIR}, and THROW to the Center.`,
+        how: [...motion, '\u{1F917} Take the handoff.', `\u{1F3C3} Keep running ${DIR}, behind the line. Don't cross it!`, '\u{1F440} Find the Center on the angle.', '\u{1F449} Set your feet, point your shoulder, and throw!'],
+        coach: [NEW_PLAY_COACH, ...SONIC_MOTION_COACH, `Then roll out ${DIR.toLowerCase()} behind the LOS and throw. First read: Center on the angle.`],
+      },
+      [other]: GO_SONIC,
+      C: CENTER_ANGLE_ROLE(DIR),
+      RB: {
+        job: `Run your banana (Swing) to the ${AWAY} and pretend you have the ball!`,
+        how: [`\u27A1\uFE0F First step goes sideways to the ${AWAY}.`, '\u{1F34C} Curve out like a banana.', '\u{1F3AD} Act like you have the ball so the defense chases YOU.', HANDS],
+        coach: [NEW_PLAY_COACH, `Assignment: Swing ${AWAY.toLowerCase()}, away from Sonic.`],
+      },
+    };
+  }
+
+  function sonicTrick(kind, dir) {
+    const t = SONIC_TRICKS[kind];
+    const left = dir === 'left';
+    const runner = left ? 'ORR' : 'ORL';
+    const other = left ? 'ORL' : 'ORR';
+    const DIR = left ? 'LEFT' : 'RIGHT';
+    const AWAY = left ? 'RIGHT' : 'LEFT';
+    const v = {
+      id: `${kind}-${dir}`,
+      group: t.group,
+      short: t.short,
+      direction: dir,
+      name: `${t.name} ${left ? 'Left' : 'Right'}`,
+      kind: t.kind,
+      sonic: runner,
+      card: `assets/img/card-sonic-${t.kind}.png`,
+      cardNote: 'No wristband picture for this one yet. It starts like Sonic: same motion on "Down".',
+      summary: t.summary(POSITIONS[runner].num, DIR, AWAY, POSITIONS[other].num),
+      snapAt: 0.9,
+      ...(left ? t.left : mirrorPlay(t.left)),
+      roles: sonicTrickRoles(kind, runner, other, DIR, AWAY),
+    };
+    if (t.targets) Object.assign(v, { targets: t.targets, defaultTarget: t.defaultTarget, qbChoice: !!t.qbChoice });
+    return v;
+  }
+
   const sonic = {
     id: 'sonic',
     name: 'Sonic',
     icon: '⚡',
     card: 'assets/img/card-sonic-run.png',
-    tagline: 'A running play. An Outside Receiver is "Sonic": they zoom across behind the QB and take the ball the other way. Coach calls Left (#4 is Sonic) or Right (#5 is Sonic).',
+    tagline: 'An Outside Receiver is "Sonic": they zoom across behind the QB. Run, Reverse, Fake handoff pass, or Sonic throws it. Coach calls Left (#4 is Sonic) or Right (#5 is Sonic).',
     roles: {
       IRL: GO_ROLE,
       IRR: GO_ROLE,
@@ -514,8 +814,20 @@
         coach: [QB_ALL_COACH, `Handoff: ${QB_HANDOFF_COACH}`],
       },
     },
-    groups: [{ id: 'handoff', name: 'Handoff' }],
-    variations: [sonicVariation('left'), sonicVariation('right')],
+    groups: [
+      { id: 'handoff', name: 'Handoff' },
+      { id: 'pass', name: 'Pass' },
+    ],
+    variations: [
+      sonicVariation('left'),
+      sonicVariation('right'),
+      sonicTrick('reverse', 'left'),
+      sonicTrick('reverse', 'right'),
+      sonicTrick('fake', 'left'),
+      sonicTrick('fake', 'right'),
+      sonicTrick('wrpass', 'left'),
+      sonicTrick('wrpass', 'right'),
+    ],
   };
 
   const GLOSSARY = [
@@ -531,6 +843,10 @@
     ['Handoff', 'The QB puts the ball right into a teammate\'s tummy.'],
     ['Toss', 'The QB gently pitches the ball to the RB.'],
     ['Motion', 'A player runs sideways before the snap. Sonic does this.'],
+    ['Reverse', 'The ball carrier hands the ball to a teammate running the other way.'],
+    ['Fake handoff', 'The QB pretends to hand the ball off, then keeps it and throws.'],
+    ['Angle route', 'Run a few steps up the field, then slant toward one sideline.'],
+    ['Roll out', 'Run sideways behind the line before you throw.'],
     ['Spot number', 'Every spot has a number that never changes. With fewer players, the highest numbers sit out.'],
     ['Play side', 'The side of the field the play is going to. Coach calls Right or Left.'],
     ['Tuck', 'Squeeze the ball tight against your body after the catch.'],
@@ -547,20 +863,102 @@
   const DEFAULT_CADENCE = 'one';
 
   // Team size rule: with fewer players, the highest spot numbers sit out.
-  // 7 v 7 everyone plays, 6 v 6 #7 sits, 5 v 5 #6 and #7 sit. Nobody's job changes.
-  const TEAM_SIZES = [7, 6, 5];
+  // 5 v 5 is the usual game: #6 and #7 sit. 6 v 6 #7 sits, 7 v 7 everyone plays.
+  // Nobody's job changes.
+  const TEAM_SIZES = [5, 6, 7];
+  const DEFAULT_SIZE = 5;
+
+  // Defense: Cover 2, 5 v 5 only for now. Alignment is Coach's: the corners and
+  // the middle linebacker line up on the ball (corners on the outside shoulder of
+  // the widest receiver, MLB over the Center), and the two safeties sit at 10
+  // yards, splitting the difference between the corner and the ball.
+  // The jobs are standard Cover 2 and still need Coach's sign-off (draft).
+  const CORNER_X = POSITIONS.ORR.start[0] + 0.6;
+  const DEF_LOS = 1; // one step off the ball, on the defense's side
+  const STAY_ONSIDE = 'Stay on your side of the ball until it is snapped.';
+  const DEFENSE = {
+    id: 'cover2',
+    name: 'Cover 2',
+    sizes: [5],
+    draft: true,
+    tagline: 'Two Corners and the Middle Linebacker line up on the ball. Two Safeties stand back deep, at 10 yards.',
+    summary: 'Corners and the Middle Linebacker guard the short stuff. The two Safeties split the deep field in half, one half each.',
+    order: ['CBL', 'MLB', 'CBR', 'SL', 'SR'],
+    positions: {
+      CBL: { short: 'CB', group: 'CB', name: 'Corner', side: 'Left', start: [-CORNER_X, DEF_LOS] },
+      MLB: { short: 'MLB', group: 'MLB', name: 'Middle Linebacker', side: '', start: [POSITIONS.C.start[0], DEF_LOS] },
+      CBR: { short: 'CB', group: 'CB', name: 'Corner', side: 'Right', start: [CORNER_X, DEF_LOS] },
+      SL: { short: 'S', group: 'S', name: 'Safety', side: 'Left', start: [-CORNER_X / 2, 10] },
+      SR: { short: 'S', group: 'S', name: 'Safety', side: 'Right', start: [CORNER_X / 2, 10] },
+    },
+    roles: {},
+  };
+  const cornerRole = (side) => ({
+    align: {
+      kid: [
+        `Line up on the line, on the ${side}, across from the receiver who is farthest out.`,
+        'Stand on their OUTSIDE shoulder, the side closer to the sideline.',
+        STAY_ONSIDE,
+      ],
+      coach: 'Cover 2 corner: on the ball, outside shoulder of the widest-aligned receiver.',
+    },
+    job: 'Keep your receiver from running outside. Guard the short grass by the sideline.',
+    how: [
+      '\u{1F440} Watch the ball. Move when it is snapped!',
+      '\u{1F6E1}️ Make your receiver run inside, toward the middle.',
+      '\u{1F3C3} Stay in the short grass by the sideline (the flat).',
+      '\u{1F3C8} Ball comes your way? Attack it and stop the runner.',
+    ],
+  });
+  const safetyRole = (side) => ({
+    align: {
+      kid: [
+        'Stand 10 big steps back from the ball.',
+        `On the ${side}, halfway between the Corner and the ball.`,
+        'Feet ready, eyes on the QB.',
+      ],
+      coach: 'Cover 2 safety: 10 yds depth, splitting the difference between the corner and the ball.',
+    },
+    job: `You guard the deep half of the field on the ${side}. Nobody gets behind you!`,
+    how: [
+      '\u{1F440} Watch the QB\'s eyes.',
+      '\u{1F519} Back up as the receivers run deep. Stay deeper than everyone on your side.',
+      '\u{1F3C8} Ball in the air? Go get it!',
+      '\u{1F6D1} Run play? Come up fast and stop the runner.',
+    ],
+  });
+  DEFENSE.roles = {
+    CBL: cornerRole('LEFT'),
+    CBR: cornerRole('RIGHT'),
+    SL: safetyRole('LEFT'),
+    SR: safetyRole('RIGHT'),
+    MLB: {
+      align: {
+        kid: ['Line up on the line, right across from the Center.', STAY_ONSIDE],
+        coach: 'Middle linebacker: on the ball, head up over the Center.',
+      },
+      job: 'Watch the QB. Guard the middle and stop runs up the middle.',
+      how: [
+        '\u{1F440} Eyes on the QB. Where does the ball go?',
+        '\u{1F3C3} Handoff? Run to the ball carrier.',
+        '\u{1F6E1}️ Pass? Drop back into the middle with your hands up.',
+      ],
+    },
+  };
 
   function sitsOut(posId, teamSize) {
     return POSITIONS[posId].num > teamSize;
   }
 
-  function getRole(play, variation, posId) {
+  // flip: the play is run to the other side. Fully mirrored plays carry their own roles.
+  function getRole(play, variation, posId, flip = false) {
     const base = play.roles[posId] || {};
-    const over = (variation.roles || {})[posId] || {};
+    const roles = flip && variation.flipped ? variation.flipped.roles : variation.roles;
+    const over = (roles || {})[posId] || {};
     return { ...base, ...over };
   }
 
-  const api = { ORDER, POSITIONS, ALIGNMENT, PRACTICE, GLOSSARY, PLAYS: [boom, sonic], RUN_TIP, TEAM_SIZES, sitsOut, getRole, CADENCES, DEFAULT_CADENCE };
+  const api = { ORDER, POSITIONS, ALIGNMENT, PRACTICE, GLOSSARY, PLAYS: [boom, sonic], RUN_TIP, TEAM_SIZES, DEFAULT_SIZE, sitsOut, getRole, CADENCES, DEFAULT_CADENCE, DEFENSE };
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
   else root.Playbook = api;
 })(typeof window !== 'undefined' ? window : globalThis);

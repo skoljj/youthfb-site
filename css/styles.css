@@ -484,3 +484,263 @@ button { font: inherit; cursor: pointer; }
 
 .kid-other { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-top: 10px; }
 .kid-other-label { font-weight: 700; color: var(--navy); font-size: 0.95rem; }
+
+/* ---------- defense ---------- */
+.ghost .actor-dot { fill: #fff; stroke: #9aa6b5; stroke-dasharray: 3 2; }
+.ghost .actor-label { fill: #9aa6b5; }
+.actor.defender .actor-dot { fill: var(--navy); stroke: var(--gold); stroke-width: 2.5; }
+.actor.defender .actor-label { fill: #fff; font-size: 9px; }
+.actor.defender.me .actor-dot { fill: var(--me); stroke: var(--navy); }
+.spot.defender .spot-dot, .role-dot.defender, .team-dot.defender { background: var(--navy); border-color: var(--gold); color: #fff; font-size: 0.8rem; }
+
+/* ---------- game plan sidebar ---------- */
+.gp-toggle {
+  margin-left: auto;
+  padding: 6px 12px;
+  border: 2px solid var(--gold);
+  border-radius: 999px;
+  background: var(--navy);
+  color: #fff;
+  font-size: 0.9rem;
+  font-weight: 700;
+  max-width: 60vw;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.gameplan {
+  position: fixed;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  z-index: 20;
+  width: min(340px, 92vw);
+  padding: 12px 16px 24px;
+  overflow-y: auto;
+  background: var(--card);
+  border-right: 4px solid var(--gold);
+  box-shadow: 4px 0 18px rgba(11, 34, 64, 0.25);
+  transform: translateX(-105%);
+  transition: transform 0.2s ease;
+}
+.gp-open .gameplan { transform: none; }
+.gp-head { display: flex; align-items: center; justify-content: space-between; }
+.gp-head h2 { margin: 4px 0; }
+.gp-close { border: 0; background: none; font-size: 1.3rem; color: var(--navy); padding: 4px 8px; }
+.gp-intro { font-size: 0.9rem; margin-bottom: 10px; }
+.gp-nav { display: flex; align-items: center; gap: 8px; margin-bottom: 10px; }
+.gp-title { flex: 1; text-align: center; font-size: 1.25rem; color: var(--navy); }
+.gp-step { min-width: 52px; font-size: 1.2rem; }
+.gp-step:disabled { opacity: 0.35; cursor: default; }
+.gp-break {
+  margin: 10px 0;
+  padding: 10px 12px;
+  background: var(--gold-soft);
+  border: 2px solid var(--gold);
+  border-radius: 12px;
+  font-size: 1.05rem;
+}
+.gp-sub { font-size: 1rem; margin: 12px 0 4px; color: var(--navy); font-weight: 700; }
+.gp-lineup { list-style: none; margin: 0; padding: 0; }
+.gp-lineup li { display: flex; justify-content: space-between; gap: 8px; padding: 3px 0; border-bottom: 1px solid var(--line); }
+.gp-pos { color: var(--muted); font-size: 0.9rem; }
+.gp-kid { font-weight: 700; color: var(--ink); }
+.gp-next { font-size: 0.9rem; margin-top: 10px; }
+.gp-edit { margin-top: 16px; border-top: 2px solid var(--line); padding-top: 8px; }
+.gp-edit > summary { font-weight: 800; color: var(--navy); cursor: pointer; }
+.gp-actions { display: flex; flex-wrap: wrap; gap: 6px; margin: 10px 0; }
+.gp-actions .btn { font-size: 0.85rem; padding: 6px 10px; }
+.gp-share { flex-basis: 100%; }
+.gp-share input { width: 100%; font: inherit; font-size: 0.8rem; padding: 6px; }
+.gp-series { border: 2px solid var(--line); border-radius: 12px; padding: 6px 10px; margin-bottom: 8px; }
+.gp-series[open] { border-color: var(--powder); }
+.gp-series > summary { font-weight: 700; cursor: pointer; font-size: 0.95rem; }
+.gp-field { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 2px 0; }
+.gp-field select { font: inherit; font-size: 0.95rem; padding: 3px 4px; min-width: 9em; }
+.break-dot { background: var(--gold-soft); border-color: var(--gold); }
+
+/* Wide screens: the game plan is always open in a left column. */
+@media (min-width: 1100px) {
+  body { padding-left: 340px; }
+  .gameplan { transform: none; box-shadow: none; width: 340px; }
+  .gp-toggle, .gp-close { display: none; }
+}
+
+/* ---------- board: field first, then the call ---------- */
+.board .play { margin-top: 20px; }
+.board .call h2 { margin-top: 20px; }
+.call-panel { gap: 8px; padding: 12px; }
+.call-row { grid-template-columns: 5.5rem 1fr; }
+.call-panel .chip { min-height: 40px; padding: 6px 12px; }
+.play-tab { min-height: 48px; font-size: 1.2rem; }
+.tab-icon { font-size: 1.3rem; }
+.call-groups { display: grid; gap: 6px; }
+.call-group { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+.call-group-label {
+  min-width: 4.2rem;
+  font-size: 0.75rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+/* Wide screens: field and call side by side, so the call and the picture are both in view. */
+@media (min-width: 1400px) {
+  main { max-width: 1180px; }
+  .board { display: grid; grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr); gap: 24px; align-items: start; }
+  .board .call h2 { margin-top: 20px; }
+  .board .play { position: sticky; top: 8px; }
+}
+.gp-side { display: inline-block; margin-left: 8px; padding: 1px 8px; border-radius: 999px; font-size: 0.8rem; font-weight: 800; vertical-align: middle; }
+.gp-side-O { background: var(--powder); color: #fff; }
+.gp-side-D { background: var(--navy); color: var(--gold); }
+
+/* ---------- compact call panel (segmented controls + chip rails) ---------- */
+.sr-only {
+  position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px;
+  overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0;
+}
+.summary { margin: 10px 0 0; font-size: 0.95rem; line-height: 1.4; color: var(--ink); }
+.call-title { font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.08em; color: var(--muted); margin: 14px 0 6px; }
+.board .call h2.call-title { margin-top: 14px; }
+
+.call-panel {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px 12px;
+  margin-top: 0;
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-radius: 18px;
+  background: #fff;
+  box-shadow: 0 1px 2px rgba(11, 34, 64, 0.06), 0 6px 20px rgba(11, 34, 64, 0.06);
+}
+.call-row { display: flex; align-items: center; gap: 8px; min-width: 0; grid-template-columns: none; }
+.call-row-rail { flex: 1 1 100%; }
+.call-row-seg { flex: 0 1 auto; }
+.call-label {
+  flex: none;
+  font-size: 0.68rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+/* Segmented control: one track, the picked segment lifts out. */
+.call-chips.seg {
+  display: inline-flex;
+  gap: 2px;
+  padding: 3px;
+  border-radius: 12px;
+  background: #e9eef4;
+}
+.call-panel .seg .chip {
+  min-height: 34px;
+  padding: 4px 12px;
+  border: 0;
+  border-radius: 9px;
+  background: transparent;
+  color: var(--navy);
+  font-size: 0.9rem;
+  font-weight: 700;
+  white-space: nowrap;
+  box-shadow: none;
+  transition: background 0.15s, box-shadow 0.15s;
+}
+.call-panel .seg .chip.active {
+  background: #fff;
+  color: var(--navy);
+  box-shadow: 0 1px 3px rgba(11, 34, 64, 0.18);
+}
+.call-panel .play-tabs .play-tab { gap: 6px; min-height: 34px; font-size: 0.95rem; letter-spacing: 0; }
+.call-panel .play-tabs .play-tab.active { background: var(--navy); color: #fff; box-shadow: 0 2px 0 var(--gold); }
+.call-panel .tab-icon { font-size: 1rem; }
+
+/* Chip rail: one line, swipe sideways for more. */
+.call-chips.rail {
+  display: flex;
+  flex-wrap: nowrap;
+  gap: 6px;
+  min-width: 0;
+  overflow-x: auto;
+  scrollbar-width: none;
+  -webkit-overflow-scrolling: touch;
+  scroll-snap-type: x proximity;
+  padding: 2px 0;
+  mask-image: linear-gradient(to right, #000 calc(100% - 24px), transparent);
+}
+.call-chips.rail::-webkit-scrollbar { display: none; }
+.call-panel .rail .chip {
+  flex: none;
+  min-height: 34px;
+  padding: 4px 12px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: #fff;
+  font-size: 0.9rem;
+  font-weight: 700;
+  white-space: nowrap;
+  scroll-snap-align: start;
+}
+.call-panel .rail .chip.active { background: var(--navy); border-color: var(--navy); color: #fff; }
+.call-groups { display: flex; }
+.call-group { display: contents; }
+.call-group-label {
+  flex: none;
+  align-self: center;
+  min-width: 0;
+  padding: 0 2px 0 6px;
+  font-size: 0.62rem;
+  letter-spacing: 0.08em;
+  color: #9aa6b5;
+}
+.call-group:first-child .call-group-label { padding-left: 0; }
+
+/* Play controls float on the field. */
+.field-wrap { border-width: 2px; border-radius: 18px; }
+.controls {
+  position: absolute;
+  right: 8px;
+  bottom: 8px;
+  display: flex;
+  gap: 6px;
+  margin: 0;
+}
+.ctl {
+  min-height: 36px;
+  min-width: 36px;
+  padding: 4px 12px;
+  border: 0;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.92);
+  color: var(--navy);
+  font-size: 0.85rem;
+  font-weight: 800;
+  box-shadow: 0 1px 4px rgba(11, 34, 64, 0.25);
+  backdrop-filter: blur(4px);
+}
+.ctl-play { background: var(--gold); }
+.hint { margin: 6px 2px 0; font-size: 0.8rem; }
+.caption { font-size: 1.3rem; }
+
+/* Phones: the field stays pinned while you change the call below it. */
+@media (max-width: 899px) {
+  .board .play {
+    position: sticky;
+    top: 0;
+    z-index: 10;
+    margin: 0 -16px;
+    padding: 8px 16px 4px;
+    background: var(--bg);
+  }
+  .board .hint { display: none; }
+  .call-panel { padding: 10px; gap: 8px 10px; }
+  .call-panel .seg .chip, .call-panel .rail .chip { padding: 4px 10px; font-size: 0.85rem; }
+}
+.gp-title { display: grid; line-height: 1.15; }
+.gp-side-text { font-size: 1.3rem; }
+.gp-side-text-O { color: var(--powder); }
+.gp-side-text-D { color: var(--navy); }
+.gp-count { font-size: 0.8rem; }
+.gp-warn { margin: 6px 0; padding: 8px 10px; border-radius: 10px; background: #fff4d6; color: #7a4b00; font-size: 0.9rem; font-weight: 700; }
