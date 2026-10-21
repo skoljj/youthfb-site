@@ -7,11 +7,15 @@
   const PLAN_KEY = 'chargers-game-plan-v1';
   const SVG_NS = 'http://www.w3.org/2000/svg';
 
-  // Field drawing scale: yards to SVG units. Matches viewBox 440 x 322.
+  // Field drawing scale: yards to SVG units. Matches viewBox 440 x 382.
+  // Behind the line is drawn a little taller (BACK per yard) so the Center, QB,
+  // and RB, and their name tags, have room.
   const SX = 20;
   const SY = 14;
+  const BACK = 26;
+  const FIELD_H = 382;
   const X = (x) => (x + 11) * SX;
-  const Y = (y) => (16.5 - y) * SY;
+  const Y = (y) => (y >= 0 ? (16.5 - y) * SY : 16.5 * SY - y * BACK);
 
   const SLOW = 0.55;
   const $ = (id) => document.getElementById(id);
@@ -26,6 +30,7 @@
     plan: null, // see js/gameplan.js
     series: 0, // index of the current series in the plan
     kid: null,
+    bench: null, // a kid on break, picked in Pick your spot
     cadence: DEFAULT_CADENCE,
     target: null,
     late: false,
@@ -79,6 +84,7 @@
     if (state.size !== DEFAULT_SIZE) params.set('n', String(state.size));
     if (state.series !== 0) params.set('s', String(state.series + 1));
     if (state.cadence !== DEFAULT_CADENCE) params.set('c', state.cadence);
+    if (state.coach) params.set('coach', '1');
     if (state.kid) params.set('kid', state.kid);
     if (!isDefense() && state.target && state.target !== state.variation.defaultTarget) params.set('to', state.target);
     const query = params.toString();
@@ -102,6 +108,11 @@
     }
     for (const c of [].concat(children)) if (c) node.append(c);
     return node;
+  }
+
+  // replaceChildren, skipping empty slots (a `cond ? node : null` would otherwise print "null").
+  function fill(node, ...children) {
+    node.replaceChildren(...children.filter((c) => c !== null && c !== undefined && c !== false));
   }
 
   function svg(tag, attrs = {}) {
@@ -227,7 +238,7 @@
     }
     const directions = directionButtons();
     if (directions) rows.push(callRow('Direction', directions, { hideLabel: true }));
-    rows.push(callRow('Cadence', CADENCES.map((c) => ({ label: c.label, active: state.cadence === c.id, onclick: () => setCadence(c.id) }))));
+    if (CADENCES.length > 1) rows.push(callRow('Cadence', CADENCES.map((c) => ({ label: c.label, active: state.cadence === c.id, onclick: () => setCadence(c.id) }))));
     $('call').replaceChildren(...rows);
     $('tagline').textContent = play.tagline;
   }
@@ -304,7 +315,12 @@
     return `${POSITIONS[id].short}-${POSITIONS[id].num}`;
   }
 
+  // Only shown when there is more than one team size to pick (today: 5 v 5 only).
   function renderTeamSize() {
+    if (TEAM_SIZES.length < 2) {
+      $('team-size').replaceChildren();
+      return;
+    }
     $('team-size').replaceChildren(
       optionGroup('Players:', TEAM_SIZES.map((n) => ({
         label: `${n} v ${n}`,
@@ -348,7 +364,7 @@
       marker.append(svg('path', { d: 'M0,0 L10,5 L0,10 z', fill: color }));
       defs.append(marker);
     }
-    field.append(defs, svg('rect', { x: 0, y: 0, width: 440, height: 322, class: 'turf' }));
+    field.append(defs, svg('rect', { x: 0, y: 0, width: 440, height: FIELD_H, class: 'turf' }));
 
     for (const yd of [5, 10, 15]) {
       field.append(svg('line', { x1: 0, x2: 440, y1: Y(yd), y2: Y(yd), class: 'yard-line' }));
@@ -373,7 +389,7 @@
     els = { actors: {}, routes: {} };
     const routeLayer = svg('g', { class: 'routes' });
     for (const id of onField()) {
-      const pts = scene.actors[id].path.slice(0, scene.actors[id].drawn);
+      const pts = scene.actors[id].route;
       if (pts.length < 2) continue;
       const d = pts.map(([x, y], i) => `${i ? 'L' : 'M'}${X(x).toFixed(1)},${Y(y).toFixed(1)}`).join(' ');
       const route = svg('path', { d, class: 'route', 'marker-end': 'url(#arrow)' });
@@ -394,10 +410,12 @@
       g.append(svg('circle', { r: 17, class: 'actor-ring' }), svg('circle', { r: 12, class: 'actor-dot' }));
       const label = svg('text', { class: 'actor-label', 'text-anchor': 'middle', dy: '0.35em' });
       label.textContent = POSITIONS[id].short;
-      const badge = svg('circle', { cx: 11, cy: -11, r: 7, class: 'actor-num-bg' });
-      const num = svg('text', { x: 11, y: -11, class: 'actor-num', 'text-anchor': 'middle', dy: '0.35em' });
+      // Number badge top right (top left for the QB, so it clears the Center).
+      const bx = id === 'QB' ? -11 : 11;
+      const badge = svg('circle', { cx: bx, cy: -11, r: 7, class: 'actor-num-bg' });
+      const num = svg('text', { x: bx, y: -11, class: 'actor-num', 'text-anchor': 'middle', dy: '0.35em' });
       num.textContent = POSITIONS[id].num;
-      g.append(label, badge, num);
+      g.append(label, badge, num, nameTag(id, NAME_SPOT[id] || 'below'));
       g.addEventListener('click', () => selectPos(id));
       g.addEventListener('keydown', (e) => (e.key === 'Enter' || e.key === ' ') && selectPos(id));
       els.actors[id] = g;
@@ -409,6 +427,22 @@
     field.append(actorLayer, els.shadow, els.ball);
     highlight();
     update();
+  }
+
+  // The kid playing this spot in the current series: a small white tag under
+  // their dot (beside it for the Center and QB, so the middle stays clear).
+  const NAME_SPOT = { C: 'right', QB: 'left' };
+  function nameTag(id, where) {
+    const kid = kidFor(id) || '';
+    const w = kid.length * 6 + 12;
+    const h = 15;
+    const [cx, cy] = { below: [0, 27], right: [19 + w / 2, 11], left: [-19 - w / 2, 11] }[where];
+    const g = svg('g', { class: 'name-tag' });
+    g.append(svg('rect', { x: cx - w / 2, y: cy - h / 2, width: w, height: h, rx: 7.5 }));
+    const tag = svg('text', { x: cx, y: cy + 0.5, 'text-anchor': 'middle', class: 'actor-name' });
+    tag.textContent = kid;
+    g.append(tag);
+    return g;
   }
 
   // Cover 2 against our own 5 v 5 formation: offense faded, defenders tappable.
@@ -431,7 +465,7 @@
       const g = svg('g', { class: 'actor defender', tabindex: 0, role: 'button', 'aria-label': posName(id), transform: `translate(${X(x).toFixed(1)},${Y(y).toFixed(1)})` });
       const label = svg('text', { class: 'actor-label', 'text-anchor': 'middle', dy: '0.35em' });
       label.textContent = DEFENSE.positions[id].short;
-      g.append(svg('circle', { r: 17, class: 'actor-ring' }), svg('circle', { r: 13, class: 'actor-dot' }), label);
+      g.append(svg('circle', { r: 17, class: 'actor-ring' }), svg('circle', { r: 13, class: 'actor-dot' }), label, nameTag(id, 'below'));
       g.addEventListener('click', () => selectPos(id));
       g.addEventListener('keydown', (e) => (e.key === 'Enter' || e.key === ' ') && selectPos(id));
       els.actors[id] = g;
@@ -528,10 +562,11 @@
         el('span', { class: 'spot-name', text: out ? 'on break' : p.side ? `${p.short} ${p.side}` : p.short }),
       ]);
     };
-    $('picker').replaceChildren(
-      el('div', { class: 'picker-row' }, ['ORL', 'IRL', 'C', 'IRR', 'ORR'].map(button)),
+    fill($('picker'),
+      el('div', { class: 'picker-row' }, ['ORL', 'IRL', 'C', 'IRR', 'ORR'].filter((id) => !sitsOut(id, state.size)).map(button)),
       el('div', { class: 'picker-row' }, [button('QB')]),
       el('div', { class: 'picker-row' }, [button('RB')]),
+      benchRow(),
     );
   }
 
@@ -552,9 +587,10 @@
       ]);
     };
     // Safeties deep on top, the three up front below, like looking down the field.
-    $('picker').replaceChildren(
+    fill($('picker'),
       el('div', { class: 'picker-row' }, ['SL', 'SR'].map(button)),
       el('div', { class: 'picker-row' }, ['CBL', 'MLB', 'CBR'].map(button)),
+      benchRow(),
     );
   }
 
@@ -563,7 +599,7 @@
     const p = DEFENSE.positions[id];
     const role = DEFENSE.roles[id];
     const kid = kidFor(id);
-    card.replaceChildren(
+    fill(card,
       el('div', { class: 'role-head' }, [
         el('span', { class: 'role-dot defender', text: p.short }),
         el('div', {}, [
@@ -583,8 +619,68 @@
     );
   }
 
+  // The kids resting this series (for the side being shown), under the spots.
+  function shownSeries() {
+    return seriesFor(isDefense() ? 'D' : 'O');
+  }
+
+  function benchRow() {
+    const resting = GamePlan.breaks(shownSeries(), state.size, Roster.KIDS);
+    if (!resting.length) return null;
+    return el('div', { class: 'bench-row' }, [
+      el('span', { class: 'bench-label', text: 'On break' }),
+      ...resting.map((kid) => {
+        const on = state.bench === kid;
+        const b = el('button', {
+          type: 'button',
+          class: `bench${on ? ' active' : ''}`,
+          'aria-pressed': String(on),
+          'aria-label': `${kid}, on break`,
+          onclick: () => selectBench(kid),
+        }, [el('span', { class: 'bench-kid', text: kid })]);
+        b.prepend(window.Badges.bottle(document));
+        return b;
+      }),
+    ]);
+  }
+
+  // What a kid on break does, and where they go in next.
+  function renderBreakCard(card) {
+    const kid = state.bench;
+    const index = state.plan.series.indexOf(shownSeries());
+    const after = state.plan.series.slice(index + 1).map((x, j) => ({ x, i: index + 1 + j })).find(({ x }) => !GamePlan.breaks(x, state.size, Roster.KIDS).includes(kid));
+    let next = null;
+    if (after) {
+      const spot = after.x.side === 'O' ? posName(idForNum(after.x.o.indexOf(kid) + 1)) : posName(DEFENSE.order.find((p) => after.x.d[p] === kid));
+      next = `\u{1F51C} Next: ${seriesLabel(after.i)}, ${spot}.`;
+    }
+    const icon = el('span', { class: 'role-dot break-dot' });
+    icon.append(window.Badges.bottle(document));
+    fill(card,
+      el('div', { class: 'role-head' }, [icon, el('div', {}, [el('h3', { text: `${kid} is on break` }), el('p', { class: 'muted', text: seriesLabel(index) })])]),
+      el('ol', { class: 'how break-how' }, [
+        el('li', { text: '\u{1F9CD} Stay ready to go in. Stand by Coach and listen.' }),
+        el('li', { text: '\u{1F4A7} Rest and drink some water.' }),
+        el('li', { text: '\u{1F440} Watch the play and cheer for your team!' }),
+        next ? el('li', { text: next }) : null,
+      ]),
+    );
+  }
+
+  function selectBench(kid) {
+    state.bench = state.bench === kid ? null : kid;
+    state.pos = null;
+    renderPicker();
+    renderRoleCard();
+    highlight();
+  }
+
   function renderRoleCard() {
     const card = $('role-card');
+    if (state.bench) {
+      renderBreakCard(card);
+      return;
+    }
     if (!state.pos) {
       card.replaceChildren(el('p', { class: 'role-empty', text: '\u{1F446} Tap a spot above (or a player on the field) to see where to stand, what to do, and how to do it.' }));
       return;
@@ -613,7 +709,7 @@
 
     const readBtn = el('button', { type: 'button', class: 'btn btn-read', onclick: () => speakRole(id, role, align), text: '\u{1F50A} Read it to me' });
 
-    card.replaceChildren(
+    fill(card,
       header,
       readBtn,
       step(1, 'Where do I stand?', el('ul', {}, align.kid.map((t) => el('li', { text: t })))),
@@ -685,6 +781,9 @@
 
   // ---------- Find your player: one kid across every series ----------
 
+  const GRID_LABEL = { 1: 'C', 2: 'QB', 3: 'RB', 4: 'WR', 5: 'WR' };
+  const DEFENSE_DRILL = { CB: 'corner', MLB: 'linebacker', S: 'safety' };
+
   // Where a kid is in each series: break, offense spot number, or defense spot.
   function kidSeries(kid) {
     return state.plan.series.map((series, index) => {
@@ -695,11 +794,6 @@
       const num = series.o.indexOf(kid) + 1;
       return { index, side: 'O', onBreak, num, id: idForNum(num) };
     });
-  }
-
-  function spotShort(x) {
-    if (x.onBreak) return 'break';
-    return x.side === 'O' ? `#${x.num} ${POSITIONS[x.id].short}` : posLabel(x.def);
   }
 
   function renderKids() {
@@ -717,27 +811,58 @@
       card.replaceChildren(el('p', { class: 'muted', text: "Tap your player's name to see their spot in each series and what to practice." }));
       return;
     }
-    const spots = kidSeries(state.kid);
-    const current = spots[state.series];
-    const offense = spots.find((x) => x.side === 'O' && !x.onBreak);
-    const drill = PRACTICE[POSITIONS[offense ? offense.id : 'QB'].group];
-    card.replaceChildren(
+    const all = kidSeries(state.kid);
+    // This game is Coach's planned series (Series 1 to 5), as on the Summary.
+    const game = all.slice(0, Roster.GAME_PLAN ? Roster.GAME_PLAN.series.length : all.length);
+    const current = all[state.series];
+    fill(card,
       seriesCard(current),
-      el('div', { class: 'kid-other' }, [
-        el('span', { class: 'kid-other-label', text: 'Every series:' }),
-        ...spots.filter((x) => x !== current).map((x) => el('button', {
-          type: 'button',
-          class: 'chip chip-sm',
-          onclick: () => setSeries(x.index),
-          text: `${seriesLabel(x.index)}: ${spotShort(x)}`,
-        })),
-      ]),
+      el('p', { class: 'kid-grid-label', text: 'Every series (tap one to see it):' }),
+      kidGrid(game, current),
       el('h3', { class: 'kid-practice-title', text: `What ${state.kid} should practice` }),
-      el('div', { class: 'kid-practice' }, [
-        el('h4', { text: `\u{1F3E1} ${drill.title}` }),
-        el('ol', {}, drill.steps.map((t) => el('li', { text: t }))),
-      ]),
+      ...practiceFor(game),
     );
+  }
+
+  // The Summary's series badges: Series 1..5 across, offense on top, defense below.
+  function kidGrid(spots, current) {
+    const rows = { O: [], D: [] };
+    const where = { O: [], D: [] };
+    for (const x of spots) {
+      rows[x.side].push(x.onBreak ? null : x.side === 'O' ? GRID_LABEL[x.num] : DEFENSE.positions[x.def].group);
+      where[x.side].push(x.index);
+    }
+    const k = where[current.side].indexOf(current.index);
+    return window.Badges.seriesGrid(document, rows, {
+      current: k >= 0 ? { side: current.side, k } : null,
+      onPick: (side, i) => setSeries(where[side][i]),
+    });
+  }
+
+  // One drill per position the kid plays this game, most-played first.
+  function practiceFor(spots) {
+    const count = new Map();
+    for (const x of spots) {
+      if (x.onBreak) continue;
+      const key = x.side === 'O' ? POSITIONS[x.id].group : DEFENSE_DRILL[DEFENSE.positions[x.def].group];
+      const label = x.side === 'O' ? GRID_LABEL[x.num] : DEFENSE.positions[x.def].group;
+      const entry = count.get(key) || { key, labels: new Set(), n: 0 };
+      entry.labels.add(label);
+      entry.n++;
+      count.set(key, entry);
+    }
+    return [...count.values()].sort((a, b) => b.n - a.n).map((entry, i) => {
+      const drill = PRACTICE[entry.key];
+      return el('details', { class: 'kid-practice', open: i === 0 ? 'open' : null }, [
+        el('summary', {}, [
+          el('span', { class: 'drill-pos', text: [...entry.labels].join(' / ') }),
+          el('span', { text: ` \u{1F3E1} ${drill.title}` }),
+          el('span', { class: 'muted', text: ` \u00B7 ${entry.n} series` }),
+        ]),
+        el('ol', {}, drill.steps.map((t) => el('li', { text: t }))),
+        drill.draft ? el('p', { class: 'muted', text: '\u{1F6A7} Coach is still building the defense drills.' }) : null,
+      ]);
+    });
   }
 
   function seriesCard(x) {
@@ -791,7 +916,7 @@
       return;
     }
     $('team-list').replaceChildren(
-      ...ORDER.map((id) => {
+      ...ORDER.filter((id) => !sitsOut(id, state.size)).map((id) => {
         const role = getRole(state.play, state.variation, id, isFlipped());
         const out = sitsOut(id, state.size);
         const job = out ? `Sits out in ${state.size} v ${state.size}.` : role.job;
@@ -805,12 +930,64 @@
     );
   }
 
+  // The wristband card, drawn from the play itself in the wristband style:
+  // yard lines, yellow spots with blue letters (the Center a square), blue
+  // routes with open arrowheads. Only the five who play are on it.
+  const WB = { w: 440, h: 236, los: 140, qb: 184, rb: 220 };
+  const wbX = (x) => ((x + 9.2) / 18.4) * WB.w;
+  const wbY = (y) => {
+    if (y >= 0) return WB.los - y * 7.6;
+    if (y >= -1.2) return WB.los + (-y / 1.2) * (WB.qb - WB.los);
+    return WB.qb + ((-y - 1.2) / 3) * (WB.rb - WB.qb);
+  };
+
   function renderWristband() {
     document.querySelector('.wristband').hidden = isDefense();
-    const v = state.variation;
-    $('card-img').src = v.card;
-    $('card-img').alt = `Wristband card for ${v.name}`;
-    $('card-note').textContent = v.cardNote || 'This is the picture on the wristband. The field above moves the same way.';
+    if (isDefense()) return;
+    const card = svg('svg', { viewBox: `0 0 ${WB.w} ${WB.h}`, class: 'wb-card', role: 'img', 'aria-label': `Wristband card for ${playCallName()}` });
+    for (const yd of [5, 10, 15]) {
+      card.append(svg('line', { x1: 0, x2: WB.w, y1: wbY(yd), y2: wbY(yd), class: 'wb-yard' }));
+      for (const [x, anchor] of [[6, 'start'], [WB.w - 6, 'end']]) {
+        const t = svg('text', { x, y: wbY(yd) + 12, 'text-anchor': anchor, class: 'wb-num' });
+        t.textContent = yd;
+        card.append(t);
+      }
+    }
+    card.append(svg('line', { x1: 0, x2: WB.w, y1: WB.los, y2: WB.los, class: 'wb-los' }));
+    const los = svg('text', { x: 6, y: WB.los + 13, class: 'wb-num' });
+    los.textContent = 'LOS';
+    card.append(los);
+    const actors = state.scene.actors;
+    const spotY = (id, y) => (id === 'QB' ? WB.qb : id === 'RB' ? WB.rb : Math.max(wbY(y), WB.los + 13));
+    for (const [id, actor] of Object.entries(actors)) {
+      const pts = actor.route;
+      if (pts.length < 2) continue;
+      const d = pts.map(([x, y], i) => `${i ? 'L' : 'M'}${wbX(x).toFixed(1)},${(i ? wbY(y) : spotY(id, y)).toFixed(1)}`).join(' ');
+      card.append(svg('path', { d, class: 'wb-route', 'marker-end': 'url(#wb-arrow)' }));
+    }
+    const defs = svg('defs');
+    const marker = svg('marker', { id: 'wb-arrow', viewBox: '0 0 10 10', refX: 8, refY: 5, markerWidth: 6, markerHeight: 6, orient: 'auto-start-reverse' });
+    marker.append(svg('path', { d: 'M1,1 L9,5 L1,9', class: 'wb-arrowhead' }));
+    defs.append(marker);
+    card.prepend(defs);
+    for (const [id, actor] of Object.entries(actors)) {
+      const [x, y] = actor.path[0];
+      const cx = wbX(x);
+      const cy = spotY(id, y);
+      card.append(id === 'C'
+        ? svg('rect', { x: cx - 11, y: cy - 11, width: 22, height: 22, class: 'wb-spot' })
+        : svg('circle', { cx, cy, r: 12, class: 'wb-spot' }));
+      const t = svg('text', { x: cx, y: cy + 0.5, class: 'wb-label' });
+      t.textContent = POSITIONS[id].short;
+      card.append(t);
+    }
+    const [qx] = actors.QB.path[0];
+    card.append(svg('ellipse', { cx: wbX(qx) + 22, cy: WB.qb, rx: 8, ry: 5, class: 'wb-ball' }));
+    const title = svg('text', { x: WB.w / 2, y: 16, 'text-anchor': 'middle', class: 'wb-title' });
+    title.textContent = `${state.play.icon} ${playCallName()}`;
+    card.append(title);
+    $('wb-card').replaceChildren(card);
+    $('card-note').textContent = `The wristband card for ${playCallName()}, 5 v 5. The field above moves the same way.`;
   }
 
   function renderGlossary() {
@@ -852,14 +1029,19 @@
     rotations: Roster.ROTATIONS,
   });
 
+  // Coach's plan exactly as written in js/roster.js (today: 10 series).
   function defaultPlan() {
-    if (GamePlan.isValid(Roster.GAME_PLAN, Roster.KIDS, DEFENSE.order)) {
-      return GamePlan.repeatPattern(Roster.GAME_PLAN, Math.max(GamePlan.DEFAULT_SERIES, Roster.GAME_PLAN.series.length));
-    }
+    if (GamePlan.isValid(Roster.GAME_PLAN, Roster.KIDS, DEFENSE.order)) return JSON.parse(JSON.stringify({ series: Roster.GAME_PLAN.series }));
     return GamePlan.autoPlan(Roster.KIDS, planOpts());
   }
 
+  // Everyone sees Coach's plan. Editing (and plans saved or shared from the
+  // editor) only exists in coach mode: a link with ?coach=1.
   function loadPlan() {
+    if (!state.coach) {
+      state.plan = defaultPlan();
+      return;
+    }
     let saved = null;
     try {
       saved = JSON.parse(localStorage.getItem(PLAN_KEY));
@@ -878,9 +1060,9 @@
     }
   }
 
-  // A shared link (?plan=...) replaces this device's plan.
+  // A shared link (?plan=...) replaces this device's plan (coach mode only).
   function importSharedPlan(text) {
-    if (!text) return;
+    if (!text || !state.coach) return;
     const plan = GamePlan.decode(text);
     if (!GamePlan.isValid(plan, Roster.KIDS, DEFENSE.order)) {
       console.warn('The shared game plan link is not valid. Keeping the plan on this device.');
@@ -921,13 +1103,44 @@
     return onField().map((id) => [posLabel(id), series.o[POSITIONS[id].num - 1]]);
   }
 
+  // Who rests in a series, with the water bottle that means "on break" everywhere.
+  function restLine(i) {
+    const line = el('small', { class: 'rest-line' }, [el('span', { text: breaksAt(i).join(', ') || 'Nobody rests' })]);
+    line.prepend(window.Badges.bottle(document));
+    return line;
+  }
+
+  // Pick any series directly: one row per Series k, Offense k and Defense k side by side.
+  function seriesPickList() {
+    const bySide = { O: [], D: [] };
+    state.plan.series.forEach((x, i) => bySide[x.side].push(i));
+    const rows = Math.max(bySide.O.length, bySide.D.length);
+    return el('div', { class: 'gp-picklist', role: 'group', 'aria-label': 'Pick a series' }, Array.from({ length: rows }, (_, k) => el('div', { class: 'gp-pick-row' }, [
+      el('span', { class: 'gp-pick-n', text: String(k + 1) }),
+      ...['O', 'D'].map((side) => {
+        const i = bySide[side][k];
+        if (i === undefined) return el('span');
+        const on = i === state.series;
+        return el('button', {
+          type: 'button',
+          class: `gp-pick gp-pick-${side}${on ? ' active' : ''}`,
+          'aria-pressed': String(on),
+          'aria-label': `${seriesLabel(i)}, break: ${breakNames(i)}`,
+          onclick: () => setSeries(i),
+        }, [el('b', { text: side === 'O' ? 'Offense' : 'Defense' }), restLine(i)]);
+      }),
+    ])));
+  }
+
   function renderGamePlan() {
     const total = state.plan.series.length;
     const series = currentSeries();
     const next = state.series + 1 < total ? state.series + 1 : null;
     const backIn = next === null ? [] : breaksAt(state.series).filter((k) => !breaksAt(next).includes(k));
-    $('gp-toggle').textContent = `\u{1F4CB} ${seriesLabel()} \u00B7 Break: ${breakNames(state.series)}`;
-    $('gp-now').replaceChildren(
+    $('gp-toggle').replaceChildren(el('span', { class: `gt-side gt-${series.side}`, text: seriesLabel() }), el('span', { class: 'gt-caret', 'aria-hidden': 'true', text: '\u25BE' }));
+    $('gp-toggle').setAttribute('aria-label', `Today's game: ${seriesLabel()}, break ${breakNames(state.series)}. Pick a series.`);
+    $('quick-list').replaceChildren(seriesPickList());
+    fill($('gp-now'),
       el('div', { class: 'gp-nav' }, [
         el('button', { type: 'button', class: 'btn gp-step', 'aria-label': 'Previous series', disabled: state.series === 0 ? 'disabled' : null, onclick: () => setSeries(state.series - 1), text: '\u25C0' }),
         el('div', { class: 'gp-title' }, [
@@ -936,7 +1149,8 @@
         ]),
         el('button', { type: 'button', class: 'btn gp-step', 'aria-label': 'Next series', disabled: next === null ? 'disabled' : null, onclick: () => setSeries(state.series + 1), text: '\u25B6' }),
       ]),
-      optionGroup('Players:', TEAM_SIZES.map((n) => ({ label: `${n} v ${n}`, active: state.size === n, onclick: () => setSize(n) }))),
+      seriesPickList(),
+      TEAM_SIZES.length > 1 ? optionGroup('Players:', TEAM_SIZES.map((n) => ({ label: `${n} v ${n}`, active: state.size === n, onclick: () => setSize(n) }))) : null,
       el('p', { class: 'gp-break' }, [el('b', { text: '\u{1F964} On break: ' }), document.createTextNode(breakNames(state.series))]),
       el('h3', { class: 'gp-sub', text: series.side === 'O' ? 'Offense' : `Defense (${DEFENSE.name})` }),
       lineupList(lineupRows(series)),
@@ -944,7 +1158,8 @@
         ? 'Last series in the plan. Add more in Edit the plan.'
         : `Next: ${seriesLabel(next)}. Break: ${breakNames(next)}.${backIn.length ? ` Back in: ${backIn.join(', ')}.` : ''}` }),
     );
-    renderPlanEditor();
+    $('gp-edit').hidden = !state.coach;
+    if (state.coach) renderPlanEditor();
   }
 
   // Option labels show Coach's defensive spots: a star is where the kid mostly plays.
@@ -1030,14 +1245,14 @@
   }
 
   function sharePlan() {
-    const link = `${location.href.split('#')[0]}#${state.play.id}/${state.variation.id}?plan=${GamePlan.encode(state.plan)}`;
+    const link = `${location.href.split('#')[0]}#${state.play.id}/${state.variation.id}?plan=${GamePlan.encode(state.plan)}&coach=1`;
     const input = el('input', { type: 'text', readonly: 'readonly', value: link, 'aria-label': 'Game plan link' });
-    const note = el('p', { class: 'muted', text: 'Copy this link and text it to parents or coaches. Opening it loads this plan.' });
+    const note = el('p', { class: 'muted', text: 'Copy this link for another coach. Opening it loads this plan in coach mode.' });
     $('gp-share').replaceChildren(input, note);
     input.select();
     if (navigator.clipboard && navigator.clipboard.writeText) {
       navigator.clipboard.writeText(link).then(
-        () => { note.textContent = 'Link copied. Text it to parents or coaches. Opening it loads this plan.'; },
+        () => { note.textContent = 'Link copied. Opening it loads this plan in coach mode.'; },
         (err) => console.warn('Could not copy the link automatically:', err.message),
       );
     }
@@ -1045,7 +1260,75 @@
 
   function setGamePlanOpen(open) {
     document.body.classList.toggle('gp-open', open);
+    syncScrim();
+  }
+
+  // ---------- Today's game (the series pill, upper right) ----------
+
+  function setQuickOpen(open) {
+    $('quick').hidden = !open;
+    document.body.classList.toggle('quick-open', open);
     $('gp-toggle').setAttribute('aria-expanded', String(open));
+    syncScrim();
+  }
+
+  // After picking a series, the lineup flashes on the field for a moment.
+  let flashTimer = null;
+  function flashLineup() {
+    const series = currentSeries();
+    const box = $('lineup-flash');
+    fill(box,
+      el('b', { text: seriesLabel() }),
+      el('span', { text: lineupRows(series).map(([pos, kid]) => `${pos} ${kid}`).join(' \u00B7 ') }),
+      el('span', { class: 'lf-rest', text: `\u{1F964} Break: ${breakNames(state.series)}` }),
+    );
+    box.hidden = false;
+    clearTimeout(flashTimer);
+    flashTimer = setTimeout(() => { box.hidden = true; }, 2600);
+  }
+
+  // ---------- Menu (hamburger, upper left) ----------
+
+  function setNavOpen(open) {
+    document.body.classList.toggle('nav-open', open);
+    $('menu-btn').setAttribute('aria-expanded', String(open));
+    syncScrim();
+    if (open && $('nav-close').focus) $('nav-close').focus();
+  }
+
+  // The dimmed backdrop shows while the menu (or, on a phone, the game plan) is open.
+  function syncScrim() {
+    const cls = document.body.classList;
+    $('scrim').hidden = !(cls.contains('nav-open') || cls.contains('gp-open') || cls.contains('quick-open'));
+  }
+
+  // ---------- Pages (How to use, Find your player, Football words) ----------
+  // Full-screen pages over the play viewer, opened from the menu. ‹ Back, the
+  // phone's back gesture, or Escape closes them.
+
+  function openPage(name) {
+    setNavOpen(false);
+    for (const page of document.querySelectorAll('.page')) page.hidden = page.id !== `page-${name}`;
+    document.body.classList.add('page-open');
+    try {
+      if (!(history.state && history.state.page)) history.pushState({ page: name }, '', location.href);
+      else history.replaceState({ page: name }, '', location.href);
+    } catch (err) {
+      console.warn('Could not add the page to the back button:', err.message);
+    }
+    const page = $(`page-${name}`);
+    page.scrollTop = 0;
+    const back = page.querySelector('[data-back]');
+    if (back && back.focus) back.focus();
+  }
+
+  function closePage() {
+    for (const page of document.querySelectorAll('.page')) page.hidden = true;
+    document.body.classList.remove('page-open');
+  }
+
+  function openPageCount() {
+    return [...document.querySelectorAll('.page')].filter((p) => !p.hidden).length;
   }
 
   // ---------- selection ----------
@@ -1073,9 +1356,9 @@
     renderPicker();
     renderRoleCard();
     renderTeam();
-    renderWristband();
     renderGamePlan();
     rebuildScene();
+    renderWristband();
     renderScribe();
     writeHash();
   }
@@ -1135,23 +1418,27 @@
   // Rolling to the next series also switches Coach calls to that side of the ball.
   function setSeries(i) {
     state.series = Math.max(0, Math.min(i, state.plan.series.length - 1));
+    if (!$('quick').hidden) setQuickOpen(false);
+    state.bench = null;
     const side = currentSeries().side === 'D' ? 'defense' : 'offense';
     if (side !== state.side) {
       state.side = side;
       state.pos = null;
     }
     renderAll();
+    flashLineup();
   }
 
   function selectKid(kid) {
     state.kid = state.kid === kid ? null : kid;
-    $('find-player').open = true;
     renderKids();
     writeHash();
   }
 
   // Jump from a kid's series card to that spot on the field.
   function showOnField(series, id) {
+    setNavOpen(false);
+    closePage();
     state.side = POSITIONS[id] ? 'offense' : 'defense';
     state.pos = null;
     state.series = series;
@@ -1164,10 +1451,12 @@
   function setSideOfBall(side) {
     state.side = side;
     state.pos = null;
+    state.bench = null;
     renderAll();
   }
 
   function selectPos(id) {
+    state.bench = null;
     if (!isDefense() && sitsOut(id, state.size)) return;
     state.pos = state.pos === id ? null : id;
     if ('speechSynthesis' in window) speechSynthesis.cancel();
@@ -1194,12 +1483,51 @@
     renderAll();
   });
 
-  $('gp-toggle').addEventListener('click', () => setGamePlanOpen(!document.body.classList.contains('gp-open')));
+  $('quick-key').prepend(window.Badges.bottle(document));
+  $('gp-toggle').addEventListener('click', () => setQuickOpen($('quick').hidden));
+  $('quick-plan').addEventListener('click', () => {
+    setQuickOpen(false);
+    setGamePlanOpen(true);
+  });
   $('gp-close').addEventListener('click', () => setGamePlanOpen(false));
+  $('menu-btn').addEventListener('click', () => setNavOpen(!document.body.classList.contains('nav-open')));
+  $('nav-close').addEventListener('click', () => setNavOpen(false));
+  $('scrim').addEventListener('click', () => {
+    setNavOpen(false);
+    setGamePlanOpen(false);
+    setQuickOpen(false);
+  });
+  $('nav-plays').addEventListener('click', () => {
+    setNavOpen(false);
+    if (window.scrollTo) window.scrollTo({ top: 0, behavior: 'smooth' });
+  });
+  $('nav-gameplan').addEventListener('click', () => {
+    setNavOpen(false);
+    setGamePlanOpen(true);
+  });
+  for (const button of document.querySelectorAll('[data-page]')) button.addEventListener('click', () => openPage(button.dataset.page));
+  for (const button of document.querySelectorAll('[data-back]')) {
+    button.addEventListener('click', () => {
+      if (history.state && history.state.page) history.back();
+      else closePage();
+    });
+  }
+  window.addEventListener('popstate', () => {
+    if (openPageCount()) closePage();
+  });
+  document.addEventListener('keydown', (e) => {
+    if (e.key !== 'Escape') return;
+    setNavOpen(false);
+    setGamePlanOpen(false);
+    setQuickOpen(false);
+    if (openPageCount()) closePage();
+  });
 
+  state.coach = /[?&]coach=1(&|$)/.test(location.hash);
   loadPlan();
   readHash();
-  if (state.kid) $('find-player').open = true;
+  // A shared link to a player opens the Find your player page.
+  if (state.kid) openPage('find-player');
   renderGlossary();
   renderAll();
 })();

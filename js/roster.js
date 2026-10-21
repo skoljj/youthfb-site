@@ -46,7 +46,7 @@
   const D = (CBL, MLB, CBR, SL, SR) => ({ side: 'D', d: { CBL, MLB, CBR, SL, SR } });
   const GAME_PLAN = {
     series: [
-      O('Jamison', 'Everett', 'Ellis', 'Sebastian', 'Mia', 'Adrian', 'Cruz'),
+      O('Jamison', 'Everett', 'Ellis', 'Mia', 'Sebastian', 'Adrian', 'Cruz'),
       D('Adrian', 'Cruz', 'Sebastian', 'Jamison', 'Mia'),
       O('Adrian', 'Sebastian', 'Everett', 'Cruz', 'Ellis', 'Mia', 'Jamison'),
       D('Ellis', 'Everett', 'Jamison', 'Cruz', 'Mia'),

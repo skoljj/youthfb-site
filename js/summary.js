@@ -1,12 +1,10 @@
 // Summary: one printable sheet of positions and breaks for the first 10 series
 // (5 offense, 5 defense), with the formations on the back.
-// Uses the same plan as the playbook page: this device's saved plan if there is
-// one, otherwise Coach's plan from js/roster.js.
+// Uses Coach's plan from js/roster.js, the same plan the playbook page shows.
 (function () {
   const { POSITIONS, ORDER, DEFENSE, DEFAULT_SIZE } = window.Playbook;
   const Roster = window.Roster;
   const GamePlan = window.GamePlan;
-  const PLAN_KEY = 'chargers-game-plan-v1';
   const SERIES = 10;
   const $ = (id) => document.getElementById(id);
 
@@ -35,16 +33,9 @@
     return el('th', { scope: 'col', title: tip, class: cls }, [document.createTextNode(text), el('span', { class: 'info', 'aria-hidden': 'true', text: ' ⓘ' })]);
   }
 
+  // Coach's plan as written in js/roster.js (what everyone sees on the site).
   function loadPlan() {
-    let saved = null;
-    try {
-      saved = JSON.parse(localStorage.getItem(PLAN_KEY));
-    } catch (err) {
-      console.warn('Could not read the saved game plan on this device:', err.message);
-    }
-    const current = saved && saved.base === GamePlan.fingerprint(Roster.GAME_PLAN);
-    if (current && GamePlan.isValid(saved, Roster.KIDS, DEFENSE.order)) return { plan: saved, source: 'the plan edited on this device' };
-    return { plan: GamePlan.repeatPattern(Roster.GAME_PLAN, GamePlan.DEFAULT_SERIES), source: "Coach's plan" };
+    return { plan: { series: Roster.GAME_PLAN.series }, source: "Coach's plan" };
   }
 
   function seriesLabels(series) {
@@ -303,31 +294,6 @@
 
   const OFFENSE_LABEL = { 1: 'C', 2: 'QB', 3: 'RB', 4: 'WR', 5: 'WR' };
 
-  // A water bottle: the badge for a break.
-  function bottle() {
-    const icon = svg('svg', { viewBox: '0 0 12 18', class: 'bottle', 'aria-hidden': 'true' });
-    icon.append(
-      svg('rect', { x: 4, y: 0.5, width: 4, height: 2.5, rx: 0.8, class: 'cap' }),
-      svg('path', { d: 'M3.5 3 H8.5 L9.5 5.5 Q10.5 6.5 10.5 8 V16 Q10.5 17.5 9 17.5 H3 Q1.5 17.5 1.5 16 V8 Q1.5 6.5 2.5 5.5 Z', class: 'body' }),
-      svg('rect', { x: 1.5, y: 9.5, width: 9, height: 3.5, class: 'label' }),
-    );
-    return icon;
-  }
-
-  // Series 1..5 across, offense on top and defense below: a position badge per
-  // series, or a water bottle for a break.
-  function seriesGrid(spots) {
-    const cells = [el('span', { class: 'g-corner' })];
-    for (let k = 1; k <= spots.O.length; k++) cells.push(el('span', { class: 'g-head', text: String(k) }));
-    for (const side of ['O', 'D']) {
-      cells.push(el('span', { class: 'g-side', text: side === 'O' ? 'Off' : 'Def' }));
-      spots[side].forEach((spot, k) => cells.push(spot
-        ? el('span', { class: `blk blk-${side}`, title: `${side === 'O' ? 'Offense' : 'Defense'} ${k + 1}: ${spot}`, text: spot })
-        : el('span', { class: 'blk blk-rest', title: `${side === 'O' ? 'Offense' : 'Defense'} ${k + 1}: break` }, [bottle()])));
-    }
-    return el('div', { class: 'series-grid', style: `grid-template-columns: auto repeat(${spots.O.length}, 1fr)` }, cells);
-  }
-
   function playerStrip(series, size) {
     return Roster.KIDS.map((kid) => {
       const spots = { O: [], D: [] };
@@ -341,7 +307,7 @@
       return el('article', { class: 'strip-player' }, [
         avatar,
         el('b', { text: kid }),
-        seriesGrid(spots),
+        window.Badges.seriesGrid(document, spots),
       ]);
     });
   }

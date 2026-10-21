@@ -10,6 +10,8 @@
   const THROW_SPEED = 14; // yards per second
   const THROW_BASE = 0.25; // seconds added to every throw
   const CARRY_OFFSET = [0.4, -0.15];
+  const UPFIELD = 6; // yards a receiver runs after the catch
+  const TUCK = 'Tuck it! Get upfield!';
 
   function dist(a, b) {
     return Math.hypot(b[0] - a[0], b[1] - a[1]);
@@ -77,6 +79,8 @@
         drawn: spec.drawn || spec.path.length,
         path: spec.path.map(([x, y]) => (flipSet.has(id) ? [-x, y] : [x, y])),
       };
+      // The route as the diagram draws it (the moving path can change after a catch).
+      actors[id].route = actors[id].path.slice(0, actors[id].drawn);
     }
     return actors;
   }
@@ -112,6 +116,29 @@
   function resolveCaptionTime(caption, actors) {
     if (caption.t !== undefined) return caption.t;
     return waypointTimes(actors[caption.actor])[caption.waypoint] + (caption.offset || 0);
+  }
+
+  // From time t, the actor heads straight upfield. If they had already stopped,
+  // they wait there for the ball first.
+  function runUpfield(actor, t) {
+    const times = waypointTimes(actor);
+    const at = positionAt(actor, t);
+    const next = times.findIndex((x) => x > t);
+    const upfield = [at[0], Math.min(at[1] + UPFIELD, 15.5)];
+    if (next === -1) {
+      const lastIndex = actor.path.length - 1;
+      actor.holds = { ...(actor.holds || {}), [lastIndex]: Math.max(0, t - times[lastIndex]) };
+      actor.path = [...actor.path, upfield];
+    } else {
+      actor.path = [...actor.path.slice(0, next), at, upfield];
+    }
+  }
+
+  // From time t, the actor stays where they are (they block once the ball is caught).
+  function holdFrom(actor, t) {
+    const times = waypointTimes(actor);
+    const next = times.findIndex((x) => x > t);
+    if (next > 0) actor.path = [...actor.path.slice(0, next), positionAt(actor, t)];
   }
 
   // Turn a variation's data into a timeline: actor paths, ball segments, captions.
@@ -167,6 +194,14 @@
       last = t1;
     }
     segments.push({ kind: 'held', actor: holder, t0: last, t1: Infinity });
+
+    // Tuck it and get upfield: after a catch the receiver turns straight upfield
+    // (the drawn route stays the same); a runner already has the ball going upfield.
+    if (passTo) {
+      runUpfield(actors[passTo], last);
+      for (const id of Object.keys(actors)) if (id !== passTo) holdFrom(actors[id], last);
+    }
+    if (holder !== 'QB') captions.push({ t: last + 0.35, text: TUCK });
 
     for (const c of variation.captions || []) {
       captions.push({ t: resolveCaptionTime(c, actors), text: c.text });

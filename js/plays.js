@@ -100,6 +100,37 @@
         'Finish every rep with "Eyes up!" and a run of 5 big steps.',
       ],
     },
+    // Defense drills (draft, like the defensive jobs: Coach to confirm).
+    corner: {
+      title: 'Stay outside, keep it in front',
+      draft: true,
+      steps: [
+        'You are the receiver. Your player stands 2 big steps in front of you, on your outside shoulder.',
+        'Jog forward. They shuffle back and stay on your outside, so you can only go toward the middle.',
+        'Turn toward the sideline. They stay in front and never let you get outside them.',
+        'Toss a soft ball past them on the outside. They attack it with two hands.',
+      ],
+    },
+    linebacker: {
+      title: 'Eyes on the QB',
+      draft: true,
+      steps: [
+        'You are the QB, 5 big steps away. Your player stands across from you, knees bent.',
+        'Pretend to hand off or to throw. They say "Run!" or "Pass!" as fast as they can.',
+        'On "Run!" they run to you. On "Pass!" they back up with their hands up.',
+        'Do 5 of each, mixed up, and cheer the quick calls.',
+      ],
+    },
+    safety: {
+      title: 'Back up, then come up',
+      draft: true,
+      steps: [
+        'Your player stands 10 big steps away, facing you.',
+        'Point up the field: they back up, staying deeper than you.',
+        'Point down at the ground: they come up fast and stop in front of you (a run play).',
+        'Finish with a high, soft toss over their head. They turn and go get it.',
+      ],
+    },
   };
 
   // Shared kid steps.
@@ -146,7 +177,7 @@
     'Assignment: 5-yard In route.',
     `Technique: See that your upfield foot is behind the ball. SEE the snap. Explode 5 yds upfield, break down, drop hips, push off outside foot, cut straight down line at 90 degrees. Find QB with your eyes. Head on swivel across middle. Settle in ${flat} flat. Keep eyes on QB, hands ready. See the ball all the way into your hands. Catch, tuck, get upfield.`,
   ];
-  const CADENCE_STEP = '\u{1F5E3}\uFE0F The cadence always starts: Ready, Down, Set, Hut-1. Add Hut-2 only when the call is "on two".';
+  const CADENCE_STEP = '\u{1F5E3}\uFE0F The cadence is always: Ready, Down, Set, Hut-1. The ball is snapped on Hut-1.';
   const QB_START = [
     '\u{1F4E3} Get everyone lined up. Call the cadence LOUD and clear.',
     CADENCE_STEP,
@@ -847,25 +878,23 @@
     ['Fake handoff', 'The QB pretends to hand the ball off, then keeps it and throws.'],
     ['Angle route', 'Run a few steps up the field, then slant toward one sideline.'],
     ['Roll out', 'Run sideways behind the line before you throw.'],
-    ['Spot number', 'Every spot has a number that never changes. With fewer players, the highest numbers sit out.'],
+    ['Spot number', 'Every spot has a number that never changes: #1 Center, #2 QB, #3 RB, #4 and #5 Outside Receivers.'],
     ['Play side', 'The side of the field the play is going to. Coach calls Right or Left.'],
     ['Tuck', 'Squeeze the ball tight against your body after the catch.'],
   ];
 
-  // Snap counts. The QB calls "on one" (etc.) twice in the huddle. At the line
-  // the cadence is always Ready, Down, Set, Hut-1, and Hut-2 only on two.
-  // The ball is snapped on the called word.
+  // Snap count: always "on one" for now. The QB says it twice in the huddle; at
+  // the line it is Ready, Down, Set, Hut-1, snapped on Hut-1.
+  // (On set and on two can come back by adding them here.)
   const CADENCES = [
-    { id: 'set', label: 'Set', call: 'on set', preSnap: ['Ready...', 'Down...'], snapWord: 'SET!' },
     { id: 'one', label: 'One', call: 'on one', preSnap: ['Ready...', 'Down...', 'Set...'], snapWord: 'HUT-1!' },
-    { id: 'two', label: 'Two', call: 'on two', preSnap: ['Ready...', 'Down...', 'Set...', 'Hut-1...'], snapWord: 'HUT-2!' },
   ];
   const DEFAULT_CADENCE = 'one';
 
   // Team size rule: with fewer players, the highest spot numbers sit out.
-  // 5 v 5 is the usual game: #6 and #7 sit. 6 v 6 #7 sits, 7 v 7 everyone plays.
-  // Nobody's job changes.
-  const TEAM_SIZES = [5, 6, 7];
+  // Every game is 5 v 5: spots #1 to #5 play. #6 and #7 (the inside receivers)
+  // stay in the data for a bigger game later, but the page only offers 5 v 5.
+  const TEAM_SIZES = [5];
   const DEFAULT_SIZE = 5;
 
   // Defense: Cover 2, 5 v 5 only for now. Alignment is Coach's: the corners and

@@ -6,14 +6,91 @@
   <meta name="robots" content="noindex, nofollow">
   <title>Chargers Playbook</title>
   <meta name="description" content="Learn the Vista Chargers plays: Boom and Sonic. Where to stand, what to do, and how to do it.">
-  <link rel="stylesheet" href="css/styles.css?v=c8946a693e">
+  <link rel="stylesheet" href="css/styles.css?v=88a51f886c">
 </head>
 <body>
   <header class="topbar">
-    <span class="bolt" aria-hidden="true">&#x26A1;</span>
-    <span>Vista Chargers Playbook</span>
-    <button class="gp-toggle" id="gp-toggle" type="button" aria-controls="gameplan" aria-expanded="false">&#x1F4CB; Game plan</button>
+    <button class="menu-btn" id="menu-btn" type="button" aria-controls="nav" aria-expanded="false" aria-label="Menu">&#x2630;</button>
+    <span class="brand"><span class="bolt" aria-hidden="true">&#x26A1;</span> Chargers Playbook</span>
+    <button class="gp-toggle" id="gp-toggle" type="button" aria-controls="quick" aria-expanded="false" aria-haspopup="dialog">Series</button>
   </header>
+
+  <div class="quick" id="quick" role="dialog" aria-label="Today's game" hidden>
+    <div class="quick-head"><b>Today's game</b><span class="muted">Pick a series</span><span class="quick-key" id="quick-key">= on break</span></div>
+    <div id="quick-list"></div>
+    <div class="quick-foot">
+      <button class="nav-item" id="quick-plan" type="button"><span class="ni-icon">&#x1F4CB;</span>Full game plan<span class="chev">&#x203A;</span></button>
+      <a class="nav-item" href="summary.html"><span class="ni-icon">&#x1F4C4;</span>Summary<span class="chev">&#x2197;</span></a>
+    </div>
+  </div>
+
+  <div class="scrim" id="scrim" hidden></div>
+  <nav class="nav" id="nav" aria-label="Menu">
+    <div class="nav-head">
+      <img class="nav-photo" src="assets/img/hero.jpg" alt="">
+      <div>
+        <b>Let's learn our plays!</b>
+        <p>For players and parents. Watch the play, find your spot, practice together.</p>
+      </div>
+      <button class="nav-close" id="nav-close" type="button" aria-label="Close menu">&#x2715;</button>
+    </div>
+
+    <button class="nav-item" id="nav-plays" type="button"><span class="ni-icon">&#x1F3C8;</span>Plays</button>
+
+    <div class="nav-parents">
+      <h2>Parents</h2>
+      <button class="nav-item" type="button" data-page="howto"><span class="ni-icon">&#x1F4D8;</span>How to use this page<span class="chev">&#x203A;</span></button>
+      <button class="nav-item" type="button" data-page="find-player"><span class="ni-icon">&#x1F50E;</span>Find your player<span class="chev">&#x203A;</span></button>
+    </div>
+
+    <h2 class="nav-group">Coach</h2>
+    <button class="nav-item" id="nav-gameplan" type="button"><span class="ni-icon">&#x1F4CB;</span>Game plan<span class="chev">&#x203A;</span></button>
+    <a class="nav-item" href="summary.html"><span class="ni-icon">&#x1F4C4;</span>Summary<span class="ni-note">print for the game</span><span class="chev">&#x2197;</span></a>
+
+    <h2 class="nav-group">More</h2>
+    <button class="nav-item" type="button" data-page="words"><span class="ni-icon">&#x1F4D6;</span>Football words<span class="chev">&#x203A;</span></button>
+  </nav>
+
+  <section class="page" id="page-howto" hidden aria-labelledby="howto-title">
+    <header class="page-bar">
+      <button class="page-back" type="button" data-back>&#x2039; Back</button>
+      <h1 id="howto-title">How to use this page</h1>
+    </header>
+    <div class="page-body">
+      <p class="page-lead">Six steps. About a minute. Go through it with your player.</p>
+      <ol class="steps">
+        <li><span class="step-icon">&#x1F50E;</span><div><b>Find your player</b><p>In the menu, tap Find your player, then your child's name. You'll see every series: where they line up and when they rest.</p></div></li>
+        <li><span class="step-icon">&#x1F4E3;</span><div><b>Call a play like Coach</b><p>Under the field, pick Offense or Defense, the play (Boom or Sonic), and the call. The field shows it.</p></div></li>
+        <li><span class="step-icon">&#x0023;&#xFE0F;&#x20E3;</span><div><b>Tap your player's number</b><p>Spots are #1 to #5. Tap one (or tap the player on the field) for their job.</p></div></li>
+        <li><span class="step-icon">&#x25B6;&#xFE0F;</span><div><b>Press Play</b><p>Watch the play move. Slow motion is on to start.</p></div></li>
+        <li><span class="step-icon">&#x1F50A;</span><div><b>Tap "Read it to me"</b><p>Go through the steps together, out loud.</p></div></li>
+        <li><span class="step-icon">&#x1F3E1;</span><div><b>Practice 5 minutes</b><p>Use the drill on the card, in the yard or at the park.</p></div></li>
+      </ol>
+      <button class="btn btn-primary page-cta" type="button" data-page="find-player">&#x1F50E; Find your player</button>
+    </div>
+  </section>
+
+  <section class="page" id="page-find-player" hidden aria-labelledby="find-title">
+    <header class="page-bar">
+      <button class="page-back" type="button" data-back>&#x2039; Back</button>
+      <h1 id="find-title">Find your player</h1>
+    </header>
+    <div class="page-body">
+      <p class="page-lead">Every series this game: where they line up, and when they rest.</p>
+      <div class="chips kid-picker" id="kid-picker" role="group" aria-label="Players"></div>
+      <div id="kid-card"></div>
+    </div>
+  </section>
+
+  <section class="page" id="page-words" hidden aria-labelledby="words-title">
+    <header class="page-bar">
+      <button class="page-back" type="button" data-back>&#x2039; Back</button>
+      <h1 id="words-title">Football words</h1>
+    </header>
+    <div class="page-body">
+      <dl class="words" id="glossary"></dl>
+    </div>
+  </section>
 
   <aside class="gameplan" id="gameplan" aria-label="Game plan">
     <div class="gp-head">
@@ -29,49 +106,17 @@
   </aside>
 
   <main>
-    <section class="intro">
-      <img class="intro-photo" src="assets/img/hero.jpg" alt="A Chargers running back carrying the football">
-      <div>
-        <h1>Let's learn our plays!</h1>
-        <p class="lead">For players and parents. Watch the play, find your spot, and practice together.</p>
-      </div>
-    </section>
-
-    <section class="parents">
-      <details class="parents-box" id="parents" open>
-        <summary>Parents</summary>
-        <details class="parents-sub" id="howto">
-          <summary>How to use this page (1 minute)</summary>
-          <ol>
-            <li><b>Find your player</b> by name to see their spot (or break) in each series.</li>
-            <li><b>Call a play like Coach:</b> Side (Offense or Defense), Play, Call, Target, Direction, Cadence.</li>
-            <li><b>Tap your player's spot number</b> (Coach gives every kid a number, #1 to #7).</li>
-            <li><b>Most games are 5 v 5</b> (#6 and #7 sit out). Pick 6 or 7 players for a bigger game.</li>
-            <li><b>Press Play</b> and watch the play move. Slow motion is on to start.</li>
-            <li><b>Tap "Read it to me"</b> and go through the steps together.</li>
-            <li><b>Practice 5 minutes</b> in the yard with the drill at the bottom of the card.</li>
-          </ol>
-          <p>Tip: the page remembers what you picked in the web address. Save it or text it to another parent.</p>
-        </details>
-        <details class="parents-sub" id="find-player">
-          <summary>Find your player</summary>
-          <p class="muted">Shows the series picked in the Game plan.</p>
-          <div class="chips kid-picker" id="kid-picker" role="group" aria-label="Players"></div>
-          <div id="kid-card"></div>
-        </details>
-      </details>
-    </section>
-
     <div class="board">
       <section class="play" aria-live="polite">
         <div class="field-wrap">
-          <svg id="field" viewBox="0 0 440 322" role="img" aria-label="Animated play diagram"></svg>
+          <svg id="field" viewBox="0 0 440 382" role="img" aria-label="Animated play diagram"></svg>
           <div class="caption" id="caption" aria-hidden="true"></div>
-          <div class="controls" role="group" aria-label="Play controls">
-            <button class="ctl ctl-play" id="btn-play" type="button">&#x25B6; Play</button>
-            <button class="ctl" id="btn-reset" type="button" aria-label="Start over" title="Start over">&#x21BA;</button>
-            <button class="ctl" id="btn-speed" type="button" aria-pressed="true" title="Slow motion is on">&#x1F422; Slow</button>
-          </div>
+          <div class="lineup-flash" id="lineup-flash" aria-live="polite" hidden></div>
+        </div>
+        <div class="controls" role="group" aria-label="Play controls">
+          <button class="ctl ctl-play" id="btn-play" type="button">&#x25B6; Play</button>
+          <button class="ctl" id="btn-reset" type="button" aria-label="Start over" title="Start over">&#x21BA;</button>
+          <button class="ctl" id="btn-speed" type="button" aria-pressed="true" title="Slow motion is on">&#x1F422; Slow</button>
         </div>
         <p class="hint">&#x1F446; Tap any player to highlight them.</p>
       </section>
@@ -89,13 +134,7 @@
       <h2>Pick your spot</h2>
       <div class="numbers">
         <p><b>Every spot has a number.</b> Your number never changes, on any play.</p>
-        <p>#1 Center, #2 QB, #3 RB, #4 and #5 Outside Receivers, #6 and #7 Inside Receivers.</p>
-        <ul>
-          <li><b>5 v 5 (most games):</b> #6 and #7 sit out.</li>
-          <li><b>6 v 6:</b> #7 sits out.</li>
-          <li><b>7 v 7:</b> everybody plays.</li>
-        </ul>
-        <p>Nobody learns a new play. Everyone else does the exact same job.</p>
+        <p>#1 Center, #2 QB, #3 RB, #4 and #5 Outside Receivers. We play 5 v 5.</p>
       </div>
       <div class="team-size" id="team-size"></div>
       <div class="picker" id="picker" role="group" aria-label="Positions"></div>
@@ -109,22 +148,19 @@
 
     <section class="wristband">
       <h2>The wristband card</h2>
-      <p class="muted" id="card-note">This is the picture on the wristband. The field above moves the same way.</p>
-      <img id="card-img" src="assets/img/card-boom-pass.png" alt="Wristband play card">
+      <p class="muted" id="card-note">The wristband card for this play. The field above moves the same way.</p>
+      <div class="wb-wrap" id="wb-card"></div>
     </section>
 
-    <section class="glossary">
-      <h2>Football words</h2>
-      <dl id="glossary"></dl>
-    </section>
   </main>
 
   <footer class="footer">Go Chargers! &#x26A1; Questions about a play? Ask Coach.</footer>
 
-  <script src="js/engine.js?v=9b24c7a754"></script>
-  <script src="js/plays.js?v=22265276ac"></script>
-  <script src="js/roster.js?v=f23718e9e3"></script>
+  <script src="js/engine.js?v=b6c0e55bb6"></script>
+  <script src="js/plays.js?v=bae785c7d9"></script>
+  <script src="js/roster.js?v=45320104d0"></script>
   <script src="js/gameplan.js?v=47f073a76b"></script>
-  <script src="js/app.js?v=3f624a1e84"></script>
+  <script src="js/badges.js?v=e1587fc749"></script>
+  <script src="js/app.js?v=98c66e379b"></script>
 </body>
 </html>
