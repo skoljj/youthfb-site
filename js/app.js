@@ -310,7 +310,7 @@
     ]);
   }
 
-  // Pass targets read like the coach says them: OR-5, IR-7, RB-3, C-1, IR-6, OR-4.
+  // Pass targets read like the coach says them: WR-5, RB-3, C-1, WR-4.
   function targetLabel(id) {
     return `${POSITIONS[id].short}-${POSITIONS[id].num}`;
   }
@@ -436,7 +436,7 @@
     const kid = kidFor(id) || '';
     const w = kid.length * 6 + 12;
     const h = 15;
-    const [cx, cy] = { below: [0, 27], right: [19 + w / 2, 11], left: [-19 - w / 2, 11] }[where];
+    const [cx, cy] = { below: [0, 27], above: [0, -29], right: [19 + w / 2, 11], left: [-19 - w / 2, 11] }[where];
     const g = svg('g', { class: 'name-tag' });
     g.append(svg('rect', { x: cx - w / 2, y: cy - h / 2, width: w, height: h, rx: 7.5 }));
     const tag = svg('text', { x: cx, y: cy + 0.5, 'text-anchor': 'middle', class: 'actor-name' });
@@ -446,8 +446,43 @@
   }
 
   // Cover 2 against our own 5 v 5 formation: offense faded, defenders tappable.
+  // Coverage areas, drawn like the Game Day Summary: tilted ovals for the
+  // corners (the flats), a triangle from the MLB over the backfield, a deep
+  // circle per safety. Field units.
+  function coverageZone(p) {
+    const x = X(p.start[0]);
+    if (p.zone === 'Flat') {
+      const dir = p.start[0] < 0 ? 1 : -1; // toward the ball
+      const cx = x + dir * 14;
+      const cy = Y(1.6);
+      return svg('ellipse', { cx, cy, rx: 62, ry: 28, transform: `rotate(${dir * 15} ${cx} ${cy})`, class: 'zone' });
+    }
+    if (p.zone === 'Middle') return svg('polygon', { points: `${x},${Y(2.8)} ${x - 84},${Y(-1)} ${x + 84},${Y(-1)}`, class: 'zone' });
+    return svg('circle', { cx: x, cy: Y(p.start[1]), r: 44, class: 'zone' });
+  }
+
+  // Read marks, relative to the defender: a stem toward the line, then a hook
+  // (corners and safeties, bending in toward the ball) or an arch (MLB).
+  function readMarks(p) {
+    const g = svg('g', { class: 'read' });
+    const toLine = Y(0) - Y(p.start[1]);
+    const dir = p.start[0] < 0 ? 1 : -1;
+    if (p.zone === 'Middle') {
+      g.append(svg('path', { d: 'M0 13 L0 16' }), svg('path', { d: `M-34 ${toLine + 1} Q0 8 34 ${toLine + 1}` }));
+    } else if (p.zone === 'Deep half') {
+      g.append(svg('path', { d: 'M0 13 L0 46' }), svg('path', { d: `M${dir * 11} 39 Q${-dir} 49 ${-dir * 2} 58` }));
+    } else {
+      g.append(svg('path', { d: 'M0 13 L0 20' }), svg('path', { d: `M${dir * 17} 10 Q${-dir} 20 ${-dir * 3} ${toLine - 1}` }));
+    }
+    return g;
+  }
+
+  // Cover 2 against our own 5 v 5 formation: coverage areas, our offense faded,
+  // defenders with their read marks and names above, like the Game Day Summary.
   function drawDefense(field) {
     els = { actors: {}, routes: {} };
+    const zones = svg('g', { class: 'zones', 'aria-hidden': 'true' });
+    for (const id of DEFENSE.order) zones.append(coverageZone(DEFENSE.positions[id]));
     const ghosts = svg('g', { class: 'ghosts', 'aria-hidden': 'true' });
     for (const id of onField()) {
       const [x, y] = POSITIONS[id].start;
@@ -461,20 +496,25 @@
     ball.append(svg('ellipse', { rx: 6.5, ry: 4.2, class: 'ball-body' }), svg('line', { x1: -2.5, x2: 2.5, y1: 0, y2: 0, class: 'ball-lace' }));
     const actorLayer = svg('g', { class: 'actors defense' });
     for (const id of DEFENSE.order) {
-      const [x, y] = DEFENSE.positions[id].start;
+      const p = DEFENSE.positions[id];
+      const [x, y] = p.start;
       const g = svg('g', { class: 'actor defender', tabindex: 0, role: 'button', 'aria-label': posName(id), transform: `translate(${X(x).toFixed(1)},${Y(y).toFixed(1)})` });
       const label = svg('text', { class: 'actor-label', 'text-anchor': 'middle', dy: '0.35em' });
-      label.textContent = DEFENSE.positions[id].short;
-      g.append(svg('circle', { r: 17, class: 'actor-ring' }), svg('circle', { r: 13, class: 'actor-dot' }), label, nameTag(id, 'below'));
+      label.textContent = p.short;
+      const marker = p.zone === 'Deep half'
+        ? svg('rect', { x: -13, y: -13, width: 26, height: 26, rx: 3, class: 'actor-dot' })
+        : svg('circle', { r: 13, class: 'actor-dot' });
+      g.append(readMarks(p), svg('circle', { r: 17, class: 'actor-ring' }), marker, label, nameTag(id, 'above'));
       g.addEventListener('click', () => selectPos(id));
       g.addEventListener('keydown', (e) => (e.key === 'Enter' || e.key === ' ') && selectPos(id));
       els.actors[id] = g;
       actorLayer.append(g);
     }
-    field.append(ghosts, ball, actorLayer);
+    field.append(zones, ghosts, ball, actorLayer);
     $('caption').textContent = '';
     highlight();
   }
+
 
   function highlight() {
     const field = $('field');
@@ -1026,6 +1066,7 @@
     defOrder: DEFENSE.order,
     groupOf: Object.fromEntries(DEFENSE.order.map((id) => [id, DEFENSE.positions[id].group])),
     prefs: Roster.DEFENSE_PREFS,
+    sideRules: Roster.DEFENSE_SIDE_RULES,
     rotations: Roster.ROTATIONS,
   });
 

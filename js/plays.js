@@ -12,11 +12,11 @@
   const ORDER = ['ORL', 'IRL', 'C', 'IRR', 'ORR', 'QB', 'RB'];
 
   const POSITIONS = {
-    ORL: { num: 5, short: 'OR', name: 'Outside Receiver', side: 'Left', group: 'receiver', start: [-6, 0] },
+    ORL: { num: 5, short: 'WR', name: 'Wide Receiver', side: 'Left', group: 'receiver', start: [-6, 0] },
     IRL: { num: 7, short: 'IR', name: 'Inside Receiver', side: 'Left', group: 'receiver', start: [-3, 0] },
     C: { num: 1, short: 'C', name: 'Center', side: '', group: 'center', start: [0.7, -0.3] },
     IRR: { num: 6, short: 'IR', name: 'Inside Receiver', side: 'Right', group: 'receiver', start: [3, 0] },
-    ORR: { num: 4, short: 'OR', name: 'Outside Receiver', side: 'Right', group: 'receiver', start: [6, 0] },
+    ORR: { num: 4, short: 'WR', name: 'Wide Receiver', side: 'Right', group: 'receiver', start: [6, 0] },
     QB: { num: 2, short: 'QB', name: 'Quarterback', side: '', group: 'qb', start: [0, -1.2], photo: 'assets/img/qb.jpg' },
     RB: { num: 3, short: 'RB', name: 'Running Back', side: '', group: 'rb', start: [0, -4.2], photo: 'assets/img/rb.jpg' },
   };
@@ -575,8 +575,8 @@
       callName: (left) => (left ? 'Boom Handoff Left, Reverse Right' : 'Boom Handoff Right, Reverse Left'),
       kind: 'run',
       card: 'assets/img/card-boom-run.png',
-      cardNote: 'No wristband picture for this one yet. The RB takes the handoff to the called side and hands it to that side\'s Outside Receiver going the other way.',
-      summary: 'The RB takes the handoff to the called side, then hands it to the Outside Receiver on that side, who runs the other way.',
+      cardNote: 'No wristband picture for this one yet. The RB takes the handoff to the called side and hands it to that side\'s Wide Receiver going the other way.',
+      summary: 'The RB takes the handoff to the called side, then hands it to the Wide Receiver on that side, who runs the other way.',
       flipActors: ['QB', 'RB'],
       ...right,
       roles: roles('RIGHT', 'LEFT', 4),
@@ -679,7 +679,7 @@
       qbChoice: true,
       summary: (n, DIR, AWAY) => `#${n} zooms across and the QB FAKES the handoff, then throws. First look: the RB swinging ${AWAY}. Coach can call a target or say QB's choice.`,
     },
-    // Sonic takes the handoff and hands it to the other Outside Receiver coming back.
+    // Sonic takes the handoff and hands it to the other Wide Receiver coming back.
     reverse: {
       group: 'handoff',
       short: 'Reverse',
@@ -818,7 +818,7 @@
     name: 'Sonic',
     icon: '⚡',
     card: 'assets/img/card-sonic-run.png',
-    tagline: 'An Outside Receiver is "Sonic": they zoom across behind the QB. Run, Reverse, Fake handoff pass, or Sonic throws it. Coach calls Left (#4 is Sonic) or Right (#5 is Sonic).',
+    tagline: 'An Wide Receiver is "Sonic": they zoom across behind the QB. Run, Reverse, Fake handoff pass, or Sonic throws it. Coach calls Left (#4 is Sonic) or Right (#5 is Sonic).',
     roles: {
       IRL: GO_ROLE,
       IRR: GO_ROLE,
@@ -878,7 +878,7 @@
     ['Fake handoff', 'The QB pretends to hand the ball off, then keeps it and throws.'],
     ['Angle route', 'Run a few steps up the field, then slant toward one sideline.'],
     ['Roll out', 'Run sideways behind the line before you throw.'],
-    ['Spot number', 'Every spot has a number that never changes: #1 Center, #2 QB, #3 RB, #4 and #5 Outside Receivers.'],
+    ['Spot number', 'Every spot has a number that never changes: #1 Center, #2 QB, #3 RB, #4 and #5 Wide Receivers.'],
     ['Play side', 'The side of the field the play is going to. Coach calls Right or Left.'],
     ['Tuck', 'Squeeze the ball tight against your body after the catch.'],
   ];

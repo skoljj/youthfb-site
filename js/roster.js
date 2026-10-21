@@ -38,6 +38,16 @@
     }));
   }
 
+  // Defensive sides, from Coach (planning rules, not shown on the page):
+  // the anchor always plays this spot, and when the anchor plays, these kids
+  // line up on the anchor's side, in this order of priority (group: only when
+  // playing that position). The left side has two spots, so not all may fit.
+  const DEFENSE_SIDE_RULES = {
+    anchor: 'Adrian',
+    spot: 'CBL',
+    sameSide: [{ kid: 'Mia' }, { kid: 'Ellis' }, { kid: 'Cruz', group: 'S' }],
+  };
+
   // Coach's game plan: the first 10 series (5 offense, 5 defense), repeated to
   // fill the game. Offense lists spots #1..#7 (#6 and #7 rest in 5 v 5).
   // Defense: everyone not listed rests. Every visitor starts with this plan, and
@@ -47,19 +57,19 @@
   const GAME_PLAN = {
     series: [
       O('Jamison', 'Everett', 'Ellis', 'Mia', 'Sebastian', 'Adrian', 'Cruz'),
-      D('Adrian', 'Cruz', 'Sebastian', 'Jamison', 'Mia'),
+      D('Adrian', 'Cruz', 'Sebastian', 'Mia', 'Jamison'),
       O('Adrian', 'Sebastian', 'Everett', 'Cruz', 'Ellis', 'Mia', 'Jamison'),
       D('Ellis', 'Everett', 'Jamison', 'Cruz', 'Mia'),
       O('Jamison', 'Everett', 'Cruz', 'Mia', 'Sebastian', 'Adrian', 'Ellis'),
-      D('Adrian', 'Sebastian', 'Everett', 'Cruz', 'Ellis'),
+      D('Adrian', 'Sebastian', 'Everett', 'Ellis', 'Cruz'),
       O('Jamison', 'Cruz', 'Ellis', 'Sebastian', 'Mia', 'Everett', 'Adrian'),
-      D('Adrian', 'Everett', 'Sebastian', 'Jamison', 'Ellis'),
+      D('Adrian', 'Everett', 'Sebastian', 'Ellis', 'Jamison'),
       O('Cruz', 'Jamison', 'Sebastian', 'Adrian', 'Mia', 'Ellis', 'Everett'),
-      D('Adrian', 'Everett', 'Ellis', 'Cruz', 'Mia'),
+      D('Adrian', 'Everett', 'Ellis', 'Mia', 'Cruz'),
     ],
   };
 
-  const api = { ROTATIONS, KIDS, DEFENSE_PREFS, GAME_PLAN, kidAt, spotsFor };
+  const api = { ROTATIONS, KIDS, DEFENSE_PREFS, DEFENSE_SIDE_RULES, GAME_PLAN, kidAt, spotsFor };
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
   else root.Roster = api;
 })(typeof window !== 'undefined' ? window : globalThis);

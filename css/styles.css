@@ -458,8 +458,8 @@ button { font: inherit; cursor: pointer; }
 /* ---------- defense ---------- */
 .ghost .actor-dot { fill: #fff; stroke: #9aa6b5; stroke-dasharray: 3 2; }
 .ghost .actor-label { fill: #9aa6b5; }
-.actor.defender .actor-dot { fill: var(--navy); stroke: var(--gold); stroke-width: 2.5; }
-.actor.defender .actor-label { fill: #fff; font-size: 9px; }
+.actor.defender .actor-dot { fill: #ffe34d; stroke: #1f3fd6; stroke-width: 2.5; }
+.actor.defender .actor-label { fill: #1f3fd6; font-size: 9px; font-weight: 900; }
 .actor.defender.me .actor-dot { fill: var(--me); stroke: var(--navy); }
 .spot.defender .spot-dot, .role-dot.defender, .team-dot.defender { background: var(--navy); border-color: var(--gold); color: #fff; font-size: 0.8rem; }
 
@@ -891,3 +891,8 @@ button.blk { cursor: pointer; }
 .lb-text span { font-size: 0.8rem; color: #6b5a2a; }
 .lb-close { width: 44px; border: 0; border-radius: 0 14px 14px 0; background: transparent; color: var(--navy); font-size: 1rem; cursor: pointer; }
 .nav-summary { margin-top: 8px; border-color: var(--gold); background: var(--gold-soft); }
+
+/* Defense on the home page field: coverage areas and read marks (Game Day Summary style). */
+.zones .zone { fill: rgba(31, 95, 214, 0.12); stroke: #333; stroke-width: 0.9; stroke-dasharray: 3 3; }
+.defender .read path { fill: none; stroke: #1f3fd6; stroke-width: 2.4; stroke-linecap: round; }
+.actor.defender.me .actor-label { fill: #fff; }

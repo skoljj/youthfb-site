@@ -29,6 +29,42 @@
     return list.flatMap((x, i) => permutations([...list.slice(0, i), ...list.slice(i + 1)]).map((rest) => [x, ...rest]));
   }
 
+  const LEFT = { CBL: true, SL: true };
+  const MIRROR = { CBL: 'CBR', CBR: 'CBL', SL: 'SR', SR: 'SL', MLB: 'MLB' };
+
+  // How well a defense follows Coach's side rules: the anchor at their spot
+  // counts most; then each same-side kid, by priority, when the anchor plays.
+  function sideScore(d, rules, groupOf) {
+    if (!rules) return 0;
+    const posOf = (kid) => Object.keys(d).find((p) => d[p] === kid);
+    const anchorAt = posOf(rules.anchor);
+    if (!anchorAt) return 0;
+    let score = anchorAt === rules.spot ? 1000 : 0;
+    const anchorLeft = !!LEFT[rules.spot];
+    rules.sameSide.forEach((rule, i) => {
+      const at = posOf(rule.kid);
+      if (!at || (rule.group && groupOf[at] !== rule.group) || at === 'MLB') return;
+      if (!!LEFT[at] === anchorLeft) score += 100 >> i; // 100, 50, 25 ...
+    });
+    return score;
+  }
+
+  // Coach's own defense, turned to follow the side rules: only left / right
+  // swaps within a position (corners trade, safeties trade), so nobody changes
+  // position. Returns the best of the four ways.
+  function orientSides(d, rules, groupOf) {
+    let best = d;
+    for (const swapCB of [false, true]) {
+      for (const swapS of [false, true]) {
+        const next = { ...d };
+        if (swapCB) [next.CBL, next.CBR] = [d.CBR, d.CBL];
+        if (swapS) [next.SL, next.SR] = [d.SR, d.SL];
+        if (sideScore(next, rules, groupOf) > sideScore(best, rules, groupOf)) best = next;
+      }
+    }
+    return best;
+  }
+
   // Best defense from these players: highest total of Coach's preferences, every
   // kid at a spot they play. null if no such lineup exists.
   // opts: { defOrder: ['CBL', ...], groupOf: { CBL: 'CB', ... }, prefs: { kid: { CB: 3 } } }
@@ -41,13 +77,18 @@
         const fit = (opts.prefs[order[i]] || {})[opts.groupOf[opts.defOrder[i]]] || 0;
         score = fit ? score + fit : -1;
       }
-      if (score > bestScore) {
-        bestScore = score;
+      if (score < 0) continue;
+      // Side rules break ties between equally good fits, without overriding them.
+      const d = Object.fromEntries(opts.defOrder.map((pos, i) => [pos, order[i]]));
+      const ranked = score * 10000 + sideScore(d, opts.sideRules, opts.groupOf);
+      if (ranked > bestScore) {
+        bestScore = ranked;
         best = order;
       }
     }
     if (!best) return null;
-    return { d: Object.fromEntries(opts.defOrder.map((pos, i) => [pos, best[i]])), score: bestScore };
+    const d = Object.fromEntries(opts.defOrder.map((pos, i) => [pos, best[i]]));
+    return { d, score: Math.floor(bestScore / 10000) };
   }
 
   // Offense from Coach's rotation: kids keep their rotation spot; open spots
@@ -213,7 +254,7 @@
     }
   }
 
-  const api = { SPOTS, DEFAULT_SERIES, onField, breaks, bestDefense, offenseFrom, autoPlan, setOffense, setDefense, repeatPattern, backToBack, fingerprint, isValid, encode, decode };
+  const api = { SPOTS, DEFAULT_SERIES, MIRROR, onField, breaks, bestDefense, offenseFrom, autoPlan, setOffense, setDefense, repeatPattern, backToBack, fingerprint, sideScore, orientSides, isValid, encode, decode };
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
   else root.GamePlan = api;
 })(typeof window !== 'undefined' ? window : globalThis);
