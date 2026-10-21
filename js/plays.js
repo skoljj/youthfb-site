@@ -869,38 +869,40 @@
   const DEFAULT_SIZE = 5;
 
   // Defense: Cover 2, 5 v 5 only for now. Alignment is Coach's: the corners and
-  // the middle linebacker line up on the ball (corners on the outside shoulder of
-  // the widest receiver, MLB over the Center), and the two safeties sit at 10
-  // yards, splitting the difference between the corner and the ball.
+  // the middle linebacker line up 2 yards off the ball (corners on the outside
+  // shoulder of the widest receiver, MLB over the Center), and the two safeties
+  // sit at 10 yards, splitting the difference between the corner and the ball.
+  // zone: the area each spot covers in Cover 2 (corners the flats, MLB the
+  // middle, safeties a deep half each).
   // The jobs are standard Cover 2 and still need Coach's sign-off (draft).
   const CORNER_X = POSITIONS.ORR.start[0] + 0.6;
-  const DEF_LOS = 1; // one step off the ball, on the defense's side
+  const DEF_LOS = 2; // two yards off the ball
   const STAY_ONSIDE = 'Stay on your side of the ball until it is snapped.';
   const DEFENSE = {
     id: 'cover2',
     name: 'Cover 2',
     sizes: [5],
     draft: true,
-    tagline: 'Two Corners and the Middle Linebacker line up on the ball. Two Safeties stand back deep, at 10 yards.',
+    tagline: 'Two Corners and the Middle Linebacker line up 2 steps off the ball. Two Safeties stand back deep, at 10 yards.',
     summary: 'Corners and the Middle Linebacker guard the short stuff. The two Safeties split the deep field in half, one half each.',
     order: ['CBL', 'MLB', 'CBR', 'SL', 'SR'],
     positions: {
-      CBL: { short: 'CB', group: 'CB', name: 'Corner', side: 'Left', start: [-CORNER_X, DEF_LOS] },
-      MLB: { short: 'MLB', group: 'MLB', name: 'Middle Linebacker', side: '', start: [POSITIONS.C.start[0], DEF_LOS] },
-      CBR: { short: 'CB', group: 'CB', name: 'Corner', side: 'Right', start: [CORNER_X, DEF_LOS] },
-      SL: { short: 'S', group: 'S', name: 'Safety', side: 'Left', start: [-CORNER_X / 2, 10] },
-      SR: { short: 'S', group: 'S', name: 'Safety', side: 'Right', start: [CORNER_X / 2, 10] },
+      CBL: { short: 'CB', group: 'CB', zone: 'Flat', name: 'Corner', side: 'Left', start: [-CORNER_X, DEF_LOS] },
+      MLB: { short: 'MLB', group: 'MLB', zone: 'Middle', name: 'Middle Linebacker', side: '', start: [POSITIONS.C.start[0], DEF_LOS] },
+      CBR: { short: 'CB', group: 'CB', zone: 'Flat', name: 'Corner', side: 'Right', start: [CORNER_X, DEF_LOS] },
+      SL: { short: 'S', group: 'S', zone: 'Deep half', name: 'Safety', side: 'Left', start: [-CORNER_X / 2, 10] },
+      SR: { short: 'S', group: 'S', zone: 'Deep half', name: 'Safety', side: 'Right', start: [CORNER_X / 2, 10] },
     },
     roles: {},
   };
   const cornerRole = (side) => ({
     align: {
       kid: [
-        `Line up on the line, on the ${side}, across from the receiver who is farthest out.`,
+        `Line up 2 big steps off the ball, on the ${side}, across from the receiver who is farthest out.`,
         'Stand on their OUTSIDE shoulder, the side closer to the sideline.',
         STAY_ONSIDE,
       ],
-      coach: 'Cover 2 corner: on the ball, outside shoulder of the widest-aligned receiver.',
+      coach: 'Cover 2 corner: 2 yds off the ball, outside shoulder of the widest-aligned receiver.',
     },
     job: 'Keep your receiver from running outside. Guard the short grass by the sideline.',
     how: [
@@ -934,8 +936,8 @@
     SR: safetyRole('RIGHT'),
     MLB: {
       align: {
-        kid: ['Line up on the line, right across from the Center.', STAY_ONSIDE],
-        coach: 'Middle linebacker: on the ball, head up over the Center.',
+        kid: ['Line up 2 big steps off the ball, right across from the Center.', STAY_ONSIDE],
+        coach: 'Middle linebacker: 2 yds off the ball, head up over the Center.',
       },
       job: 'Watch the QB. Guard the middle and stop runs up the middle.',
       how: [

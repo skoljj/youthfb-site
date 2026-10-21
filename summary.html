@@ -1,0 +1,235 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="robots" content="noindex, nofollow">
+  <title>Summary</title>
+  <meta name="description" content="Vista Chargers: positions and breaks for the first 10 series.">
+  <style>
+    :root {
+      --navy: #0b2240; --powder: #0080c6; --gold: #ffc20e;
+      --ink: #142033; --muted: #64748b; --line: #d8e0e9; --bg: #f6f8fb;
+      --off: #e7f3fb; --def: #eceff5; --rest: #fff3cc;
+    }
+    * { box-sizing: border-box; }
+    body { margin: 0; background: var(--bg); color: var(--ink); font: 15px/1.35 -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif; }
+    main { max-width: 1040px; margin: 0 auto; padding: 16px; }
+    header { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; margin-bottom: 10px; }
+    h1 { margin: 0; font-size: 1.5rem; color: var(--navy); }
+    #source { margin: 0; color: var(--muted); font-size: 0.9rem; }
+    .actions { margin-left: auto; display: flex; gap: 8px; }
+    .actions a, .actions button {
+      min-height: 40px; padding: 8px 14px; border-radius: 10px; border: 1px solid var(--line);
+      background: #fff; color: var(--navy); font: inherit; font-weight: 700; text-decoration: none; cursor: pointer;
+    }
+    h2 { margin: 16px 0 6px; font-size: 0.8rem; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); }
+    .scroll { overflow-x: auto; background: #fff; border: 1px solid var(--line); border-radius: 12px; }
+    .pair { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+    table.grid { width: 100%; border-collapse: collapse; font-size: 0.9rem; }
+    .grid th, .grid td { padding: 6px 8px; border-bottom: 1px solid var(--line); text-align: center; white-space: nowrap; }
+    .grid thead th { font-size: 0.75rem; color: var(--navy); background: #f2f5f9; cursor: help; }
+    .grid thead th.side-O { background: var(--off); }
+    .grid thead th.side-D { background: var(--def); }
+    .grid .info { color: var(--muted); font-weight: 400; }
+    .grid th.name { text-align: left; }
+    .grid tbody th { font-weight: 800; color: var(--navy); }
+    .grid td.side-O { background: #f7fbfe; }
+    .grid td.side-D { background: #f8f9fb; }
+    .grid td.rest { background: var(--rest); color: #7a4b00; font-weight: 800; }
+    .grid td.num { font-weight: 800; }
+    .grid tr:last-child th, .grid tr:last-child td { border-bottom: 0; }
+    .grid .rest-row td { white-space: normal; font-size: 0.8rem; }
+    @media (max-width: 720px) { .pair { grid-template-columns: 1fr; } }
+
+    /* Count chart: one blue, light to dark = fewer to more times. Empty = never. */
+    h3 { margin: 4px 0 6px; font-size: 0.9rem; color: var(--navy); }
+    .chart-head { display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap; }
+    .legend { display: flex; align-items: center; gap: 4px; font-size: 0.8rem; color: var(--muted); }
+    .legend i { width: 26px; height: 20px; border-radius: 4px; display: grid; place-items: center; font-style: normal; font-weight: 800; font-size: 0.75rem; }
+    .heatmap td.heat { border: 2px solid #fff; border-radius: 6px; font-weight: 800; }
+    .heat-0 { background: #fff; }
+    .heat-1 { background: #cde2fb; color: var(--ink); }
+    .heat-2 { background: #86b6ef; color: var(--ink); }
+    .heat-3 { background: #3987e5; color: #fff; }
+    .heat-4 { background: #1c5cab; color: #fff; }
+    .heatmap td.rest-count { color: #7a4b00; font-weight: 800; background: #fffaf0; }
+    /* Front page: the play cards, one row per Series (Offense k beside Defense k). */
+    .tables { margin-top: 18px; }
+    .formations { display: grid; gap: 8px; }
+    /* Series row: a header of its own, then Offense k and Defense k. */
+    .series-row { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 6px 10px; }
+    .series-head { grid-column: 1 / -1; display: flex; align-items: center; gap: 10px; margin: 10px 0 0; }
+    .series-head::after { content: ""; flex: 1; height: 2px; background: var(--navy); opacity: 0.25; }
+    .series-name { padding: 3px 12px; border-radius: 999px; background: var(--navy); color: #fff; font-size: 0.8rem; font-weight: 900; letter-spacing: 0.1em; text-transform: uppercase; box-shadow: 0 2px 0 var(--gold); }
+    .card-field .break-tag rect { fill: #fff3cc; stroke: #e7c45a; stroke-width: 1; }
+    .card-field .break-label { fill: #8a5a00; font-size: 6.5px; font-weight: 900; letter-spacing: 0.1em; }
+    .card-field .break-names { fill: #5c3c00; font-size: 9.5px; font-weight: 800; }
+    .formation { background: #fff; border: 1px solid var(--line); border-radius: 12px; padding: 6px 8px 4px; break-inside: avoid; }
+    .formation header { display: flex; align-items: baseline; gap: 8px; font-size: 0.8rem; letter-spacing: 0.06em; text-transform: uppercase; }
+    .formation header b { color: var(--navy); }
+    .formation.side-O header b { color: var(--powder); }
+    .formation svg { display: block; width: 100%; height: auto; }
+    .formation .los { stroke: #9aa6b5; stroke-width: 1.2; stroke-dasharray: 4 3; }
+    /* Offense and defense cards in the wristband-card style. */
+    .card-field .jersey { fill: #0080c6; stroke: #0c2340; stroke-width: 1.2; }
+    .card-field .trim { fill: none; stroke: #ffc20e; stroke-width: 2.5; stroke-linecap: round; }
+    .card-field .collar { fill: none; stroke: #ffc20e; stroke-width: 1.6; stroke-linejoin: round; }
+    .card-field .jersey-pos { fill: #fff; stroke: #0c2340; stroke-width: 2.2px; paint-order: stroke; font-size: 10.5px; font-weight: 900; text-anchor: middle; dominant-baseline: central; }
+    .card-field .jersey-num { fill: #ffc20e; font-size: 7px; font-weight: 900; text-anchor: middle; dominant-baseline: central; }
+    .card-field .helmet { fill: #0080c6; stroke: #0c2340; stroke-width: 1.2; }
+    .card-field .stripe { stroke: #ffc20e; stroke-width: 2.6; stroke-linecap: round; }
+    .card-field .face { fill: #0c2340; }
+    .card-field .mask { stroke: #c9d1db; stroke-width: 1.2; }
+    .card-field .player .name { fill: var(--ink); font-size: 10.5px; font-weight: 800; }
+    .card-field .yard { stroke: #c9c9c9; stroke-width: 1; }
+    .card-field .los-line { stroke: #9a9a9a; stroke-width: 1.2; }
+    .card-field .yard-label { font-size: 7px; fill: #555; font-weight: 700; }
+    .card-field .zone { fill: rgba(31, 95, 214, 0.13); stroke: #333; stroke-width: 0.8; stroke-dasharray: 2 2; }
+    .card-field .read path { fill: none; stroke: #1f3fd6; stroke-width: 2; stroke-linecap: round; }
+    .card-field .x-mark { font-size: 10px; fill: #333; text-anchor: middle; }
+    .card-field .ball { fill: #8a4b1f; }
+    .card-field .defender .mark { fill: #ffe34d; stroke: #1f3fd6; stroke-width: 2; }
+    .card-field .defender .pos { fill: #1f3fd6; font-size: 7.5px; font-weight: 900; text-anchor: middle; dominant-baseline: central; }
+    .card-field .defender .name { fill: var(--ink); font-size: 9.5px; font-weight: 800; text-anchor: middle; }
+    /* Players: one swipeable row at the top. The next card always peeks in. */
+    .players-head { display: flex; align-items: baseline; gap: 10px; }
+    .players-head h2 { margin-bottom: 4px; }
+    .swipe-hint { font-size: 0.8rem; font-weight: 800; color: var(--powder); }
+    .strip-nav { margin-left: auto; display: flex; gap: 6px; }
+    .strip-nav button { width: 34px; height: 34px; border-radius: 50%; border: 1px solid var(--line); background: #fff; color: var(--navy); font: inherit; font-size: 1.2rem; font-weight: 800; cursor: pointer; }
+    .strip-nav button:disabled { opacity: 0.35; cursor: default; }
+    .strip {
+      display: flex; gap: 10px; overflow-x: auto; scroll-snap-type: x mandatory; scroll-padding: 0 16px;
+      margin: 0 -16px; padding: 2px 16px 6px; scrollbar-width: none; -webkit-overflow-scrolling: touch;
+      mask-image: linear-gradient(to right, #000 calc(100% - 40px), transparent);
+    }
+    .strip::-webkit-scrollbar { display: none; }
+    .strip.at-end { mask-image: none; }
+    .strip-player {
+      flex: 0 0 clamp(205px, 68vw, 236px); scroll-snap-align: start;
+      display: grid; grid-template-columns: 40px 1fr; align-items: center; column-gap: 8px;
+      background: #fff; border: 1px solid var(--line); border-radius: 14px; padding: 8px 10px; break-inside: avoid;
+    }
+    .strip-avatar { display: block; width: 40px; height: auto; }
+    .strip-player b { color: var(--navy); font-size: 1.05rem; }
+    .strip-player .series-grid { grid-column: 1 / -1; }
+    .strip-dots { display: flex; justify-content: center; gap: 6px; margin-top: 4px; }
+    .strip-dots i { width: 7px; height: 7px; border-radius: 50%; background: var(--line); transition: background 0.2s, width 0.2s; }
+    .strip-dots i.on { width: 18px; border-radius: 4px; background: var(--navy); }
+    @media (prefers-reduced-motion: reduce) { .strip-dots i { transition: none; } }
+    .series-grid { display: grid; gap: 2px; margin: 6px 0 4px; align-items: center; }
+    .series-grid .g-head, .series-grid .g-side { font-size: 0.55rem; font-weight: 800; color: var(--muted); text-transform: uppercase; }
+    .series-grid .g-side { padding-right: 2px; text-align: right; }
+    .blk { display: grid; place-items: center; height: 20px; border-radius: 5px; font-size: 0.6rem; font-weight: 900; color: #fff; letter-spacing: 0.02em; }
+    .blk-O { background: #0080c6; }
+    .blk-D { background: #0c2340; color: #ffc20e; }
+    .blk-rest { background: #fff3cc; box-shadow: inset 0 0 0 1px #e7c45a; }
+    .bottle { width: 9px; height: 14px; }
+    .bottle .cap { fill: #0c2340; }
+    .bottle .body { fill: #bfe3f7; stroke: #0080c6; stroke-width: 1; }
+    .bottle .label { fill: #ffc20e; }
+    @media (max-width: 720px) {
+      .series-row { grid-template-columns: minmax(0, 1fr); }
+    }
+
+    @page { size: landscape; margin: 10mm; }
+    @media print {
+      body { background: #fff; font-size: 11px; }
+      main { max-width: none; padding: 0; }
+      .actions, .grid .info { display: none; }
+      .scroll { overflow: visible; border-color: #999; }
+      .grid th, .grid td { padding: 4px 6px; }
+      h2 { margin-top: 8px; }
+      .heatmap th, .heatmap td { padding: 2px 4px; }
+      .tables { break-before: page; margin-top: 0; }
+      .formations { gap: 4px; }
+      .series-row { gap: 2px 6px; }
+      .series-head { margin-top: 3px; }
+      .series-name { padding: 1px 8px; font-size: 8px; }
+      .formation { padding: 3px 6px 2px; }
+      .formation svg { max-height: 26mm; }
+      main { display: flex; flex-direction: column; }
+      .players { order: 3; }
+      .players-head .swipe-hint, .strip-nav, .strip-dots { display: none; }
+      .strip { overflow: visible; margin: 0; padding: 0; gap: 3px; mask-image: none; }
+      .strip-player { flex: 1 1 0; min-width: 0; padding: 3px; grid-template-columns: 22px 1fr; }
+      .strip-avatar { width: 22px; }
+      .strip-player b { font-size: 9px; }
+      .blk { height: 13px; font-size: 6px; }
+      .bottle { width: 6px; height: 10px; }
+      * { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+    }
+  </style>
+</head>
+<body>
+  <main>
+    <header>
+      <div>
+        <h1>Summary</h1>
+        <p id="source"></p>
+      </div>
+      <div class="actions">
+        <a href="index.html">&#x2190; Playbook</a>
+        <button id="print" type="button">&#x1F5A8; Print</button>
+      </div>
+    </header>
+
+    <section class="players" aria-roledescription="carousel" aria-label="Players">
+      <div class="players-head">
+        <h2 id="strip-title">Players</h2>
+        <span class="swipe-hint" aria-hidden="true">Swipe &#x203A;</span>
+        <div class="strip-nav">
+          <button type="button" id="strip-prev" aria-label="Previous players">&#x2039;</button>
+          <button type="button" id="strip-next" aria-label="Next players">&#x203A;</button>
+        </div>
+      </div>
+      <div class="strip" id="strip" tabindex="0"></div>
+      <div class="strip-dots" id="strip-dots" aria-hidden="true"></div>
+    </section>
+
+    <section class="lineups">
+      <h2>Lineups, series by series</h2>
+      <div class="formations" id="formations"></div>
+    </section>
+
+    <section class="tables">
+      <h2>Every player, series by series</h2>
+      <div class="scroll" id="by-player"></div>
+
+      <div class="chart-head">
+        <h2>How many times at each spot</h2>
+        <div class="legend" aria-label="Shade shows how many times">
+          <span>Times:</span><i class="heat-1">1</i><i class="heat-2">2</i><i class="heat-3">3</i><i class="heat-4">4</i>
+        </div>
+      </div>
+      <div class="pair">
+        <section>
+          <h3>Offense</h3>
+          <div class="scroll" id="count-offense"></div>
+        </section>
+        <section>
+          <h3>Defense</h3>
+          <div class="scroll" id="count-defense"></div>
+        </section>
+      </div>
+
+      <div class="pair">
+        <section>
+          <h2>Offense</h2>
+          <div class="scroll" id="by-offense"></div>
+        </section>
+        <section>
+          <h2>Defense</h2>
+          <div class="scroll" id="by-defense"></div>
+        </section>
+      </div>
+    </section>
+  </main>
+
+  <script src="js/plays.js?v=22265276ac"></script>
+  <script src="js/roster.js?v=f23718e9e3"></script>
+  <script src="js/gameplan.js?v=47f073a76b"></script>
+  <script src="js/summary.js?v=b469b9376c"></script>
+</body>
+</html>

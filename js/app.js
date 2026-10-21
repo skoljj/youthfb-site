@@ -551,7 +551,7 @@
         el('span', { class: 'spot-name', text: p.side ? `${p.name} ${p.side}` : p.name }),
       ]);
     };
-    // Safeties deep on top, the three on the ball below, like looking down the field.
+    // Safeties deep on top, the three up front below, like looking down the field.
     $('picker').replaceChildren(
       el('div', { class: 'picker-row' }, ['SL', 'SR'].map(button)),
       el('div', { class: 'picker-row' }, ['CBL', 'MLB', 'CBR'].map(button)),
@@ -866,12 +866,13 @@
     } catch (err) {
       console.warn('Could not read the saved game plan on this device:', err.message);
     }
-    state.plan = GamePlan.isValid(saved, Roster.KIDS, DEFENSE.order) ? saved : defaultPlan();
+    const current = saved && saved.base === GamePlan.fingerprint(Roster.GAME_PLAN);
+    state.plan = current && GamePlan.isValid(saved, Roster.KIDS, DEFENSE.order) ? { series: saved.series } : defaultPlan();
   }
 
   function savePlan() {
     try {
-      localStorage.setItem(PLAN_KEY, JSON.stringify(state.plan));
+      localStorage.setItem(PLAN_KEY, JSON.stringify({ series: state.plan.series, base: GamePlan.fingerprint(Roster.GAME_PLAN) }));
     } catch (err) {
       console.warn('Could not save the game plan on this device:', err.message);
     }
@@ -985,6 +986,7 @@
         el('button', { type: 'button', class: 'btn', onclick: addSeries, text: '\u2795 Add series' }),
         el('button', { type: 'button', class: 'btn', disabled: total <= 1 ? 'disabled' : null, onclick: removeLastSeries, text: '\u2796 Remove last' }),
         el('button', { type: 'button', class: 'btn', onclick: sharePlan, text: '\u{1F517} Share plan link' }),
+        el('a', { class: 'btn', href: 'summary.html', text: '\u{1F4C4} Summary' }),
         el('div', { class: 'gp-share', id: 'gp-share' }),
       ]),
       ...backToBackWarnings(),

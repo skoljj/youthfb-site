@@ -177,6 +177,12 @@
     return out;
   }
 
+  // A plan saved on a device remembers which built-in plan it started from, so a
+  // change to the built-in plan replaces older saved copies.
+  function fingerprint(plan) {
+    return plan ? JSON.stringify(plan.series) : '';
+  }
+
   function isValid(plan, kids, defOrder) {
     if (!plan || !Array.isArray(plan.series) || !plan.series.length) return false;
     const team = [...kids].sort().join('|');
@@ -207,7 +213,7 @@
     }
   }
 
-  const api = { SPOTS, DEFAULT_SERIES, onField, breaks, bestDefense, offenseFrom, autoPlan, setOffense, setDefense, repeatPattern, backToBack, isValid, encode, decode };
+  const api = { SPOTS, DEFAULT_SERIES, onField, breaks, bestDefense, offenseFrom, autoPlan, setOffense, setDefense, repeatPattern, backToBack, fingerprint, isValid, encode, decode };
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
   else root.GamePlan = api;
 })(typeof window !== 'undefined' ? window : globalThis);
