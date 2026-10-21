@@ -6,7 +6,7 @@
   <meta name="robots" content="noindex, nofollow">
   <title>Chargers Playbook</title>
   <meta name="description" content="Learn the Vista Chargers plays: Boom and Sonic. Where to stand, what to do, and how to do it.">
-  <link rel="stylesheet" href="css/styles.css?v=88a51f886c">
+  <link rel="stylesheet" href="css/styles.css?v=2db51d55db">
 </head>
 <body>
   <header class="topbar">
@@ -20,7 +20,7 @@
     <div id="quick-list"></div>
     <div class="quick-foot">
       <button class="nav-item" id="quick-plan" type="button"><span class="ni-icon">&#x1F4CB;</span>Full game plan<span class="chev">&#x203A;</span></button>
-      <a class="nav-item" href="summary.html"><span class="ni-icon">&#x1F4C4;</span>Summary<span class="chev">&#x2197;</span></a>
+      <a class="nav-item" href="summary.html"><span class="ni-icon">&#x1F4C4;</span>Game Day Summary<span class="chev">&#x2197;</span></a>
     </div>
   </div>
 
@@ -35,6 +35,8 @@
       <button class="nav-close" id="nav-close" type="button" aria-label="Close menu">&#x2715;</button>
     </div>
 
+    <a class="nav-item nav-summary" href="summary.html"><span class="ni-icon">&#x1F4C4;</span>Game Day Summary<span class="chev">&#x2197;</span></a>
+
     <button class="nav-item" id="nav-plays" type="button"><span class="ni-icon">&#x1F3C8;</span>Plays</button>
 
     <div class="nav-parents">
@@ -45,7 +47,6 @@
 
     <h2 class="nav-group">Coach</h2>
     <button class="nav-item" id="nav-gameplan" type="button"><span class="ni-icon">&#x1F4CB;</span>Game plan<span class="chev">&#x203A;</span></button>
-    <a class="nav-item" href="summary.html"><span class="ni-icon">&#x1F4C4;</span>Summary<span class="ni-note">print for the game</span><span class="chev">&#x2197;</span></a>
 
     <h2 class="nav-group">More</h2>
     <button class="nav-item" type="button" data-page="words"><span class="ni-icon">&#x1F4D6;</span>Football words<span class="chev">&#x203A;</span></button>
@@ -106,6 +107,13 @@
   </aside>
 
   <main>
+    <div class="lineup-banner" id="lineup-banner" hidden>
+      <a class="lb-link" href="summary.html">
+        <span class="lb-icon" aria-hidden="true">&#x1F4C4;</span>
+        <span class="lb-text"><b>Today's Lineup Rotation Summary</b><span>Who plays where and who rests, every series &#x203A;</span></span>
+      </a>
+      <button class="lb-close" id="lineup-banner-close" type="button" aria-label="Hide this banner">&#x2715;</button>
+    </div>
     <div class="board">
       <section class="play" aria-live="polite">
         <div class="field-wrap">
@@ -161,6 +169,6 @@
   <script src="js/roster.js?v=45320104d0"></script>
   <script src="js/gameplan.js?v=47f073a76b"></script>
   <script src="js/badges.js?v=e1587fc749"></script>
-  <script src="js/app.js?v=98c66e379b"></script>
+  <script src="js/app.js?v=821e47e764"></script>
 </body>
 </html>

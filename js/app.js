@@ -1287,6 +1287,34 @@
     flashTimer = setTimeout(() => { box.hidden = true; }, 2600);
   }
 
+  // ---------- Lineup banner (top of the home page) ----------
+  // Hidden once dismissed on this device, until Coach's plan changes.
+
+  const BANNER_KEY = 'chargers-lineup-banner-hidden';
+
+  function bannerId() {
+    return GamePlan.fingerprint(Roster.GAME_PLAN);
+  }
+
+  function showLineupBanner() {
+    let hiddenFor = null;
+    try {
+      hiddenFor = localStorage.getItem(BANNER_KEY);
+    } catch (err) {
+      console.warn('Could not read the banner setting on this device:', err.message);
+    }
+    $('lineup-banner').hidden = hiddenFor === bannerId();
+  }
+
+  function hideLineupBanner() {
+    $('lineup-banner').hidden = true;
+    try {
+      localStorage.setItem(BANNER_KEY, bannerId());
+    } catch (err) {
+      console.warn('Could not save the banner setting on this device:', err.message);
+    }
+  }
+
   // ---------- Menu (hamburger, upper left) ----------
 
   function setNavOpen(open) {
@@ -1490,6 +1518,8 @@
     setGamePlanOpen(true);
   });
   $('gp-close').addEventListener('click', () => setGamePlanOpen(false));
+  $('lineup-banner-close').addEventListener('click', hideLineupBanner);
+  showLineupBanner();
   $('menu-btn').addEventListener('click', () => setNavOpen(!document.body.classList.contains('nav-open')));
   $('nav-close').addEventListener('click', () => setNavOpen(false));
   $('scrim').addEventListener('click', () => {
