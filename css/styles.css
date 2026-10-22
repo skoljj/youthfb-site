@@ -896,3 +896,16 @@ button.blk { cursor: pointer; }
 .zones .zone { fill: rgba(31, 95, 214, 0.12); stroke: #333; stroke-width: 0.9; stroke-dasharray: 3 3; }
 .defender .read path { fill: none; stroke: #1f3fd6; stroke-width: 2.4; stroke-linecap: round; }
 .actor.defender.me .actor-label { fill: #fff; }
+
+/* Coach's script page (coach mode). */
+.script-series { margin-bottom: 14px; }
+.script-series .series-head { margin: 6px 0; }
+.script-card { padding: 10px 12px; margin-top: 6px; border-radius: 14px; background: #fff; border: 1px solid var(--line); }
+.script-O { border-left: 5px solid var(--powder); }
+.script-D { border-left: 5px solid var(--navy); }
+.script-card b { color: var(--navy); }
+.script-card p { margin: 4px 0 0; }
+.script-rest { color: #7a4b00; font-size: 0.9rem; }
+.script-play { display: flex; gap: 8px; align-items: baseline; font-weight: 700; }
+.sp-tag { flex: none; min-width: 3.2em; padding: 1px 6px; border-radius: 6px; background: var(--gold); color: var(--navy); font-size: 0.75rem; font-weight: 900; text-align: center; }
+.sp-2 { background: var(--navy); color: var(--gold); }

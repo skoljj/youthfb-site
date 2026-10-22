@@ -1200,6 +1200,7 @@
         : `Next: ${seriesLabel(next)}. Break: ${breakNames(next)}.${backIn.length ? ` Back in: ${backIn.join(', ')}.` : ''}` }),
     );
     $('gp-edit').hidden = !state.coach;
+    renderScript();
     if (state.coach) renderPlanEditor();
   }
 
@@ -1369,6 +1370,39 @@
   function syncScrim() {
     const cls = document.body.classList;
     $('scrim').hidden = !(cls.contains('nav-open') || cls.contains('gp-open') || cls.contains('quick-open'));
+  }
+
+  // ---------- Coach's script (coach mode only) ----------
+
+  function renderScript() {
+    $('nav-script').hidden = !state.coach;
+    if (!state.coach) return;
+    const offense = state.plan.series.filter((x) => x.side === 'O');
+    const defense = state.plan.series.filter((x) => x.side === 'D');
+    const lineup = (series) => lineupRows(series).map(([pos, kid]) => `${pos} ${kid}`).join(' \u00B7 ');
+    const rest = (series) => GamePlan.breaks(series, state.size, Roster.KIDS).join(', ') || 'nobody';
+    fill($('script-body'),
+      el('p', { class: 'page-lead', text: 'Every snap is on one. Plays are suggestions; call what you see.' }),
+      ...offense.map((o, k) => {
+        const plays = (Roster.COACH_SCRIPT || [])[k] || {};
+        const d = defense[k];
+        return el('section', { class: 'script-series' }, [
+          el('h2', { class: 'series-head' }, [el('span', { class: 'series-name', text: `Series ${k + 1}` })]),
+          el('div', { class: 'script-card script-O' }, [
+            el('b', { text: 'Offense' }),
+            el('p', { text: lineup(o) }),
+            el('p', { class: 'script-rest', text: `\u{1F964} Break: ${rest(o)}` }),
+            plays.score ? el('p', { class: 'script-play' }, [el('span', { class: 'sp-tag', text: 'Score' }), document.createTextNode(plays.score)]) : null,
+            plays.twoPt ? el('p', { class: 'script-play' }, [el('span', { class: 'sp-tag sp-2', text: '2-pt' }), document.createTextNode(plays.twoPt)]) : null,
+          ]),
+          d ? el('div', { class: 'script-card script-D' }, [
+            el('b', { text: `Defense (${DEFENSE.name})` }),
+            el('p', { text: lineup(d) }),
+            el('p', { class: 'script-rest', text: `\u{1F964} Break: ${rest(d)}` }),
+          ]) : null,
+        ]);
+      }),
+    );
   }
 
   // ---------- Pages (How to use, Find your player, Football words) ----------

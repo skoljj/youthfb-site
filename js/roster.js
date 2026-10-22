@@ -69,7 +69,17 @@
     ],
   };
 
-  const api = { ROTATIONS, KIDS, DEFENSE_PREFS, DEFENSE_SIDE_RULES, GAME_PLAN, kidAt, spotsFor };
+  // Coach's script: a scoring play and a 2-point play per offensive series.
+  // Coach mode only (?coach=1). Names match GAME_PLAN; update both together.
+  const COACH_SCRIPT = [
+    { score: 'Sonic Run Left, Mia', twoPt: 'Boom Handoff Inside Right, Ellis' },
+    { score: 'Boom Pass, Ellis (WR-5 on the In)', twoPt: 'Boom Handoff Inside Left, Everett' },
+    { score: 'Boom Toss Right, Cruz', twoPt: 'Sonic Run Right, Sebastian' },
+    { score: 'Sonic Run Left, Sebastian', twoPt: 'Boom Pass, Jamison (C-1 hook)' },
+    { score: 'Boom RB Pass Right, Cruz (Sebastian throws to Cruz on the angle)', twoPt: 'Boom Handoff Outside Left, Sebastian' },
+  ];
+
+  const api = { ROTATIONS, KIDS, DEFENSE_PREFS, DEFENSE_SIDE_RULES, GAME_PLAN, COACH_SCRIPT, kidAt, spotsFor };
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
   else root.Roster = api;
 })(typeof window !== 'undefined' ? window : globalThis);
