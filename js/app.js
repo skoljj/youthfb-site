@@ -1372,10 +1372,30 @@
     $('scrim').hidden = !(cls.contains('nav-open') || cls.contains('gp-open') || cls.contains('quick-open'));
   }
 
+  // Coach mode: turned on by coach=1 anywhere in the link (before or after the
+  // #), and remembered on this device, so the coach's own phone keeps it.
+  // coach=0 turns it off again.
+  const COACH_KEY = 'chargers-coach-mode';
+  function detectCoach() {
+    const flag = `${location.search}&${location.hash}`.match(/[?&#]coach=([01])/);
+    try {
+      if (flag) {
+        if (flag[1] === '1') localStorage.setItem(COACH_KEY, '1');
+        else localStorage.removeItem(COACH_KEY);
+      }
+      return flag ? flag[1] === '1' : localStorage.getItem(COACH_KEY) === '1';
+    } catch (err) {
+      console.warn('Could not remember coach mode on this device:', err.message);
+      return !!flag && flag[1] === '1';
+    }
+  }
+
   // ---------- Coach's script (coach mode only) ----------
 
   function renderScript() {
+    // Hidden on the element itself, so no menu style can show it to parents.
     $('nav-script').hidden = !state.coach;
+    $('nav-script').style.display = state.coach ? '' : 'none';
     if (!state.coach) return;
     const offense = state.plan.series.filter((x) => x.side === 'O');
     const defense = state.plan.series.filter((x) => x.side === 'D');
@@ -1628,7 +1648,7 @@
     if (openPageCount()) closePage();
   });
 
-  state.coach = /[?&]coach=1(&|$)/.test(location.hash);
+  state.coach = detectCoach();
   loadPlan();
   readHash();
   // A shared link to a player opens the Find your player page.
