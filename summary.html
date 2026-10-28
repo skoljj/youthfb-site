@@ -71,6 +71,13 @@
     .formation.side-O header b { color: var(--powder); }
     .formation svg { display: block; width: 100%; height: auto; }
     .formation .los { stroke: #9aa6b5; stroke-width: 1.2; stroke-dasharray: 4 3; }
+    /* Coach's calls (coach=1 only): scripted plays and 2-pt plays per Series. */
+    .calls-card { grid-column: 1 / -1; display: grid; grid-template-columns: 1fr 1fr; gap: 4px 16px; padding: 10px 14px; border-radius: 12px; background: #fff; border: 1px solid var(--line); border-left: 5px solid var(--gold); }
+    .calls-tag { display: inline-block; padding: 1px 8px; border-radius: 6px; background: var(--gold); color: var(--navy); font-size: 0.75rem; letter-spacing: 0.06em; text-transform: uppercase; }
+    .calls-2pt { background: var(--navy); color: var(--gold); }
+    .calls-list { margin: 4px 0 0; padding-left: 20px; font-weight: 700; }
+    .calls-list li { padding: 2px 0; }
+    @media (max-width: 720px) { .calls-card { grid-template-columns: 1fr; } }
     /* Offense and defense cards in the wristband-card style. */
     .card-field .jersey { fill: #0080c6; stroke: #0c2340; stroke-width: 1.2; }
     .card-field .trim { fill: none; stroke: #ffc20e; stroke-width: 2.5; stroke-linecap: round; }
@@ -161,17 +168,17 @@
       * { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
     }
   </style>
-  <script>(function(){var b="b2ba3e68e4a3";try{fetch("version.json?t="+Date.now(),{cache:"no-store"}).then(function(r){return r.json()}).then(function(j){if(j.v!==b&&!sessionStorage.getItem("reloaded-"+j.v)){sessionStorage.setItem("reloaded-"+j.v,"1");location.reload()}}).catch(function(){})}catch(e){}})()</script>
+  <script>(function(){var b="2e7029660a24";try{fetch("version.json?t="+Date.now(),{cache:"no-store"}).then(function(r){return r.json()}).then(function(j){if(j.v!==b&&!sessionStorage.getItem("reloaded-"+j.v)){sessionStorage.setItem("reloaded-"+j.v,"1");location.reload()}}).catch(function(){})}catch(e){}})()</script>
 </head>
 <body>
   <main>
     <header>
       <div>
-        <h1>Game Day Summary</h1>
+        <h1 id="page-title">Game Day Summary</h1>
         <p id="source"></p>
       </div>
       <div class="actions">
-        <a href="index.html">&#x2190; Playbook</a>
+        <a id="back-link" href="index.html">&#x2190; Playbook</a>
         <button id="print" type="button">&#x1F5A8; Print</button>
       </div>
     </header>
@@ -232,6 +239,6 @@
   <script src="js/roster.js?v=16a3663178"></script>
   <script src="js/gameplan.js?v=b81ece1403"></script>
   <script src="js/badges.js?v=e1587fc749"></script>
-  <script src="js/summary.js?v=e12ddfc6bc"></script>
+  <script src="js/summary.js?v=e2cd8b120e"></script>
 </body>
 </html>

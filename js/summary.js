@@ -280,14 +280,27 @@
   }
 
   // One row per Series: a header that stands on its own, then Offense k and Defense k.
+  // Coach mode (coach=1 in the link): each Series also shows Coach's calls.
+  const COACH = /[?&#]coach=1(&|$)/.test(`${location.search}&${location.hash}`);
+
+  function callsCard(plan) {
+    const list = (items) => el('ol', { class: 'calls-list' }, (items || []).map((t) => el('li', { text: t })));
+    return el('article', { class: 'calls-card' }, [
+      el('div', { class: 'calls-col' }, [el('b', { class: 'calls-tag', text: 'Plays' }), list(plan.plays)]),
+      el('div', { class: 'calls-col' }, [el('b', { class: 'calls-tag calls-2pt', text: '2-pt' }), list(plan.twoPt)]),
+    ]);
+  }
+
   function seriesRows(series, size) {
     const offense = series.filter((s) => s.side === 'O');
     const defense = series.filter((s) => s.side === 'D');
+    const script = Roster.COACH_SCRIPT || [];
     return Array.from({ length: Math.max(offense.length, defense.length) }, (_, k) => el('section', { class: 'series-row' }, [
       el('h3', { class: 'series-head' }, [el('span', { class: 'series-name', text: `Series ${k + 1}` })]),
+      COACH && script[k] ? callsCard(script[k]) : null,
       lineupCard(offense[k], size, 'O'),
       lineupCard(defense[k], size, 'D'),
-    ]));
+    ].filter(Boolean)));
   }
 
   // ---------- Bottom strip: every player, and what they play this game ----------
@@ -349,6 +362,11 @@
     $('count-offense').replaceChildren(countChart(series, 'O', size));
     $('count-defense').replaceChildren(countChart(series, 'D', size));
     $('formations').replaceChildren(...seriesRows(series, size));
+    if (COACH) {
+      document.title = "Coach's Game Plan";
+      $('page-title').textContent = "Coach's Game Plan";
+      $('back-link').href = 'index.html?coach=1';
+    }
     $('strip').replaceChildren(...playerStrip(series, size));
     $('strip-title').textContent = `Players \u00B7 Series 1 to ${series.filter((x) => x.side === 'O').length}`;
     wireStrip();
