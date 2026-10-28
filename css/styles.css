@@ -911,3 +911,8 @@ button.blk { cursor: pointer; }
 .script-play { display: flex; gap: 8px; align-items: baseline; font-weight: 700; }
 .sp-tag { flex: none; min-width: 3.2em; padding: 1px 6px; border-radius: 6px; background: var(--gold); color: var(--navy); font-size: 0.75rem; font-weight: 900; text-align: center; }
 .sp-2 { background: var(--navy); color: var(--gold); }
+
+.script-calls { border-left: 5px solid var(--gold); }
+.script-plays { margin: 6px 0 4px; padding-left: 22px; font-weight: 700; color: var(--ink); }
+.script-plays li { padding: 3px 0; }
+.script-calls .two-pt { display: inline-block; margin-top: 6px; padding: 1px 8px; border-radius: 6px; background: var(--navy); color: var(--gold); font-size: 0.8rem; }

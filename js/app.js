@@ -1388,19 +1388,24 @@
     const defense = state.plan.series.filter((x) => x.side === 'D');
     const lineup = (series) => lineupRows(series).map(([pos, kid]) => `${pos} ${kid}`).join(' \u00B7 ');
     const rest = (series) => GamePlan.breaks(series, state.size, Roster.KIDS).join(', ') || 'nobody';
+    const playList = (cls, items) => el('ol', { class: `script-plays ${cls}` }, (items || []).map((t) => el('li', { text: t })));
     fill($('script-body'),
-      el('p', { class: 'page-lead', text: 'Every snap is on one. Plays are suggestions; call what you see.' }),
+      el('p', { class: 'page-lead', text: 'Every snap is on one.' }),
       ...offense.map((o, k) => {
-        const plays = (Roster.COACH_SCRIPT || [])[k] || {};
+        const plan = (Roster.COACH_SCRIPT || [])[k] || {};
         const d = defense[k];
         return el('section', { class: 'script-series' }, [
           el('h2', { class: 'series-head' }, [el('span', { class: 'series-name', text: `Series ${k + 1}` })]),
+          el('div', { class: 'script-card script-calls' }, [
+            el('b', { text: 'Plays' }),
+            playList('', plan.plays),
+            el('b', { class: 'two-pt', text: '2-pt' }),
+            playList('script-2pt', plan.twoPt),
+          ]),
           el('div', { class: 'script-card script-O' }, [
             el('b', { text: 'Offense' }),
             el('p', { text: lineup(o) }),
             el('p', { class: 'script-rest', text: `\u{1F964} Break: ${rest(o)}` }),
-            plays.score ? el('p', { class: 'script-play' }, [el('span', { class: 'sp-tag', text: 'Score' }), document.createTextNode(plays.score)]) : null,
-            plays.twoPt ? el('p', { class: 'script-play' }, [el('span', { class: 'sp-tag sp-2', text: '2-pt' }), document.createTextNode(plays.twoPt)]) : null,
           ]),
           d ? el('div', { class: 'script-card script-D' }, [
             el('b', { text: `Defense (${DEFENSE.name})` }),
@@ -1411,6 +1416,7 @@
       }),
     );
   }
+
 
   // ---------- Pages (How to use, Find your player, Football words) ----------
   // Full-screen pages over the play viewer, opened from the menu. ‹ Back, the

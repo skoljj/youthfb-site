@@ -69,14 +69,29 @@
     ],
   };
 
-  // Coach's script: a scoring play and a 2-point play per offensive series.
-  // Coach mode only (?coach=1). Names match GAME_PLAN; update both together.
+  // Coach's game plan: the plays Coach wants per series, and the 2-point plays.
+  // Coach mode only (?coach=1). Written as Coach calls them.
   const COACH_SCRIPT = [
-    { score: 'Sonic Run Left, Mia', twoPt: 'Boom Handoff Inside Right, Ellis' },
-    { score: 'Boom Pass, Ellis (WR-5 on the In)', twoPt: 'Boom Handoff Inside Left, Everett' },
-    { score: 'Boom Toss Right, Cruz', twoPt: 'Sonic Run Right, Sebastian' },
-    { score: 'Sonic Run Left, Sebastian', twoPt: 'Boom Pass, Jamison (C-1 hook)' },
-    { score: 'Boom RB Pass Right, Cruz (Sebastian throws to Cruz on the angle)', twoPt: 'Boom Handoff Outside Left, Sebastian' },
+    {
+      plays: ['Boom toss / handoff', 'Boom pass (Mia)', 'Sonic pass (Ellis)'],
+      twoPt: ['Sonic WR pass (Jamison)', 'Fake Sonic pass (Ellis)'],
+    },
+    {
+      plays: ['Boom handoff / toss (Everett)', 'Boom pass, play-action (Cruz)', 'Sonic (Ellis)', 'Sonic, fake, RB swing (Everett)'],
+      twoPt: ['Boom pass (Cruz)', 'Boom, all hooks'],
+    },
+    {
+      plays: ['Sonic pass (Jamison / Mia)', 'Fake Sonic, RB banana (Cruz)', 'Boom pass, WR', 'Boom handoff / toss'],
+      twoPt: ['HB pass (Jamison)', 'Boom pass, WR'],
+    },
+    {
+      plays: ['Boom pass (Sebastian / Mia)', 'Boom toss / handoff (Ellis)', 'Sonic, fake, RB swing (Ellis)'],
+      twoPt: ['Boom pass, WR', 'Fake Sonic, RB banana (Ellis)'],
+    },
+    {
+      plays: ['Boom toss', 'Boom toss, RB pass to the Center (Jamison)'],
+      twoPt: ['Boom pass', 'RB pass (Adrian)'],
+    },
   ];
 
   const api = { ROTATIONS, KIDS, DEFENSE_PREFS, DEFENSE_SIDE_RULES, GAME_PLAN, COACH_SCRIPT, kidAt, spotsFor };
